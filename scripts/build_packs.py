@@ -20,6 +20,7 @@ import re
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 API = "https://api.tcgdex.net/v2"
@@ -83,6 +84,12 @@ def load_languages(path):
     return codes
 
 
+def path_id(raw):
+    """URL path segment for a TCGdex id: ids like "SM1+" or "exu-?" must be percent-encoded ("+" alone is a 404).
+    "%" stays as is, because some ids already come encoded (e.g. "exu-%3F")."""
+    return urllib.parse.quote(raw, safe="%")
+
+
 def clean_card(card):
     return {k: v for k, v in card.items() if k not in DROP_CARD_FIELDS}
 
@@ -107,7 +114,7 @@ def fetch_pack_content(lang, get=http_get_json, only_set=None, concurrency=CONCU
     if not ids:
         raise BuildError(f"{lang}: no sets")
     with concurrent.futures.ThreadPoolExecutor(concurrency) as pool:
-        sets = list(pool.map(lambda i: get(f"{API}/{lang}/sets/{i}"), ids))
+        sets = list(pool.map(lambda i: get(f"{API}/{lang}/sets/{path_id(i)}"), ids))
         briefs = {}
         for s in sets:
             for c in s.get("cards", []):
@@ -118,7 +125,7 @@ def fetch_pack_content(lang, get=http_get_json, only_set=None, concurrency=CONCU
 
         def fetch_card(card_id):
             try:
-                return clean_card(get(f"{API}/{lang}/cards/{card_id}"))
+                return clean_card(get(f"{API}/{lang}/cards/{path_id(card_id)}"))
             except NotFound:
                 missing.append(card_id)
                 return brief_card(*briefs[card_id])
