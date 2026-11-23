@@ -17,7 +17,8 @@ jobs:
   cleanup:
     if: >
       contains(github.event.issue.labels.*.name, 'proposta') &&
-      !contains(github.event.issue.labels.*.name, 'approvata')
+      !contains(github.event.issue.labels.*.name, 'approvata') &&
+      !contains(github.event.issue.labels.*.name, 'nome')
     runs-on: ubuntu-24.04
     env:
       ISSUE: ${{ github.event.issue.number }}

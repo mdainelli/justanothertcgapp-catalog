@@ -35,6 +35,15 @@ export interface Proposal {
   description?: string;
 }
 
+/** Normalised name suggestion: a name in a catalog language (ja) paired with a suggested English one. */
+export interface NameSuggestion {
+  target: "set" | "card";
+  lang: string;
+  id: string;
+  original: string;
+  english: string;
+}
+
 /** Error with the HTTP status and the machine code returned to the app. */
 export class HttpError extends Error {
   constructor(

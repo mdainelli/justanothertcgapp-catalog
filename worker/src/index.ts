@@ -1,6 +1,7 @@
 import { ebayConfigured, handleAccountDeletion, handleEbaySearch } from "./ebay";
 import { GitHub, type FetchFn } from "./github";
 import { buildIssueBody, issueTitle, newProposalId, photoPath } from "./issue";
+import { buildNameIssueBody, nameIssueTitle, newSuggestionId, validateNameSuggestion } from "./names";
 import { checkJpeg, MAX_IMAGE_BYTES } from "./jpeg";
 import { turnstilePage, verifyTurnstile } from "./turnstile";
 import { HttpError, type Env } from "./types";
@@ -114,6 +115,52 @@ async function handleProposal(request: Request, env: Env, deps: Deps): Promise<R
   return json(201, { proposalId, issueNumber: issue.number, issueUrl: issue.html_url });
 }
 
+const MAX_NAME_BODY_BYTES = 8 * 1024;
+
+/** English name suggestion for a set/card name: JSON body, no photos, same checks and limit as proposals. */
+async function handleNameSuggestion(request: Request, env: Env, deps: Deps): Promise<Response> {
+  const declared = Number(request.headers.get("content-length") ?? "0");
+  if (declared > MAX_NAME_BODY_BYTES) throw new HttpError(413, "too_large");
+  if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) {
+    throw new HttpError(400, "invalid_request", "application/json required");
+  }
+  const raw = await request.text();
+  if (raw.length > MAX_NAME_BODY_BYTES) throw new HttpError(413, "too_large");
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new HttpError(400, "invalid_json");
+  }
+  const obj = (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? parsed : {}) as Record<string, unknown>;
+  if (obj.consent !== true) throw new HttpError(400, "invalid_consent");
+  const suggestion = validateNameSuggestion(parsed);
+  const installHash = validateInstallHash(obj.installHash);
+  const token = obj.turnstileToken;
+  if (typeof token !== "string" || token === "" || token.length > 2048) {
+    throw new HttpError(400, "invalid_turnstile_token");
+  }
+
+  if (!(await verifyTurnstile(token, env.TURNSTILE_SECRET, deps.fetchFn))) {
+    throw new HttpError(403, "turnstile_failed");
+  }
+
+  // Same policy as card proposals (counted before any GitHub call, no refund), own counter per install.
+  const limit = Number.parseInt(env.DAILY_LIMIT ?? "", 10) || DEFAULT_LIMIT;
+  const key = `n:${installHash}`;
+  const used = Number.parseInt((await env.LIMITS.get(key)) ?? "0", 10) || 0;
+  if (used >= limit) throw new HttpError(429, "daily_limit");
+  await env.LIMITS.put(key, String(used + 1), { expirationTtl: TTL_SECONDS });
+
+  const proposalId = newSuggestionId(deps.now(), deps.randomHex8());
+  const gh = new GitHub(env.CATALOG_REPO, env.GITHUB_TOKEN, deps.fetchFn);
+  const issue = await gh.createIssue(nameIssueTitle(suggestion), buildNameIssueBody(suggestion, proposalId), [
+    "proposta",
+    "nome",
+  ]);
+  return json(201, { proposalId, issueNumber: issue.number, issueUrl: issue.html_url });
+}
+
 export async function handleRequest(request: Request, env: Env, deps: Deps = defaultDeps): Promise<Response> {
   const { pathname } = new URL(request.url);
   try {
@@ -132,6 +179,10 @@ export async function handleRequest(request: Request, env: Env, deps: Deps = def
     if (pathname === "/v1/proposals") {
       if (request.method !== "POST") throw new HttpError(405, "method_not_allowed");
       return await handleProposal(request, env, deps);
+    }
+    if (pathname === "/v1/name-suggestions") {
+      if (request.method !== "POST") throw new HttpError(405, "method_not_allowed");
+      return await handleNameSuggestion(request, env, deps);
     }
     if (pathname === "/ebay/search") {
       if (request.method !== "GET") throw new HttpError(405, "method_not_allowed");

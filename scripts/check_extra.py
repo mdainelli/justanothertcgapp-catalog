@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Semantic checks that JSON Schema cannot express (see FORMAT.md, "Rules").
 
-Usage: python3 scripts/check_extra.py [path/to/extra-cards.json]
+Usage: python3 scripts/check_extra.py [path/to/extra-cards.json | path/to/name-overrides.json]
+A file named name-overrides.json is checked as the English name overrides (see FORMAT.md).
 Exit code 0 when valid, 1 (with one message per line) otherwise.
 """
 import json
@@ -14,6 +15,37 @@ errors = []
 
 with open(os.path.join(root, path) if not os.path.isabs(path) else path, encoding="utf-8") as f:
     doc = json.load(f)
+
+if os.path.basename(path) == "name-overrides.json":
+    from approve_proposal import LANGS, NAME_ID_RE, ProposalError, validate_english_name
+
+    n = 0
+    if doc.get("version") != 1:
+        errors.append("version must be 1")
+    for kind in ("sets", "cards"):
+        section = doc.get(kind)
+        if not isinstance(section, dict):
+            errors.append(f'"{kind}" must be an object')
+            continue
+        for lang, names in section.items():
+            if lang not in LANGS:
+                errors.append(f"{kind}: unknown language {lang!r}")
+            if not isinstance(names, dict):
+                errors.append(f"{kind}/{lang}: must be an object")
+                continue
+            for key, english in names.items():
+                n += 1
+                if not NAME_ID_RE.match(key):
+                    errors.append(f"{kind}/{lang}: invalid id {key!r}")
+                try:
+                    if validate_english_name(english) != english:
+                        errors.append(f"{kind}/{lang}/{key}: name must be trimmed and NFC-normalised")
+                except ProposalError as e:
+                    errors.append(f"{kind}/{lang}/{key}: {e}")
+    for e in errors:
+        print("ERROR:", e)
+    print(f"{n} name overrides, {len(errors)} errors")
+    sys.exit(1 if errors else 0)
 
 set_ids = set()
 for s in doc.get("sets", []):

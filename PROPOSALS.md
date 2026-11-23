@@ -119,6 +119,79 @@ Senza foto del retro la riga `Foto:` contiene solo il link al fronte e `images.b
 spazi. Le foto stanno sul branch `proposals` in `proposals/<proposalId>/front.jpg|back.jpg`.
 Il Worker e' coperto da un test che rilegge il blocco dal corpo della issue.
 
+## Proposte di nome inglese (set e carte giapponesi)
+
+Stesso flusso, ma senza foto: dalla schermata di un set o di una carta giapponese l'utente puo' suggerire il
+nome inglese ("Suggerisci nome inglese"). Stessa pagina `/turnstile`, stesso consenso esplicito, stesso
+`installHash`, stesso Worker.
+
+### `POST /v1/name-suggestions` (application/json, max 8 KB)
+
+```json
+{
+  "target": "set",
+  "lang": "ja",
+  "id": "SV6",
+  "original": "変幻の仮面",
+  "english": "Mask of Change",
+  "consent": true,
+  "installHash": "<64 caratteri esadecimali minuscoli>",
+  "turnstileToken": "<token di /turnstile>"
+}
+```
+
+- `target`: `set` o `card`. `lang`: uno dei codici delle proposte (l'app la offre solo per `ja`).
+- `id`: id TCGdex del set o della carta (`[A-Za-z0-9][A-Za-z0-9\-._]{0,59}`); `original`: il nome nella lingua
+  del catalogo (1-100 caratteri, senza caratteri di controllo ne' `< > [ ] \`` `@` `://`).
+- `english`: 1-100 caratteri, lettere latine (o greche), cifre e punteggiatura semplice (`' ’ . , : ! ? & + - – ( ) / · ♀ ♂`),
+  iniziale lettera o cifra, **nessun link** (`://`, `www.`, domini). Il Worker rifila gli spazi.
+- `consent` deve essere il booleano `true`. Campi sconosciuti: rifiutati.
+- Controlli in ordine: dimensione, content-type, JSON, `consent`, campi, `installHash`, token, Turnstile, limite.
+- Limite giornaliero: stesso `DAILY_LIMIT` (default 3 in 24 ore) ma contatore **separato** da quello delle proposte
+  di carte (chiave KV `n:<installHash>`), stessa regola (contato prima di GitHub, nessun rimborso).
+- Risposta `201`: `{ "proposalId": "n-YYYYMMDD-<8 hex>", "issueNumber": 12, "issueUrl": "..." }`.
+  Errori: come sopra, con `400 invalid_suggestion` (+ `detail`) al posto di `invalid_proposal`.
+  Non crea il branch `proposals` e non scrive file: solo la issue.
+
+### Formato della issue
+
+Titolo: `Nome inglese: <original> → <english>`, etichette `proposta` **e `nome`**. Corpo:
+
+````
+<!-- justanothertcgapp-name-suggestion v1 -->
+**Nome inglese proposto** (set `SV6`, ja): <original> → <english>
+
+```json name-suggestion
+{
+  "formatVersion": 1,
+  "target": "set",
+  "lang": "ja",
+  "id": "SV6",
+  "original": "変幻の仮面",
+  "english": "Mask of Change",
+  "proposalId": "n-YYYYMMDD-<8 hex>"
+}
+```
+
+Per approvare aggiungi l'etichetta `approvata`.
+````
+
+### Approvazione
+
+Marco controlla il nome e aggiunge `approvata` (solo se la issue ha `proposta` **e** `nome`). Il job
+`approve-name` di `approve-proposal.yml` esegue `scripts/approve_proposal.py approve-name`: valida il JSON con le
+stesse regole del Worker, scrive `catalog/name-overrides.json` (`sets.<lang>.<id>` o `cards.<lang>.<id>`;
+**un'approvazione successiva per la stessa chiave sostituisce la precedente**, chiavi ordinate), esegue ajv
+(`schema/name-overrides.schema.json`) e `check_extra.py catalog/name-overrides.json`, committa
+`Nome inglese <lang>/<id> (proposta #N)` su `main`, commenta e chiude la issue. In caso di errore: commento
+`❌ Proposta non valida: <motivo>`, etichetta `errore`, issue aperta, `approvata` tolta (si riprova come per le
+carte). Una issue `nome` chiusa senza approvazione non fa nulla (`cleanup-proposal.yml` la ignora: niente foto).
+Formato del file: [`FORMAT.md`](FORMAT.md#nomi-inglesi-name-overridesjson).
+
+**Da configurare una volta**: crea l'etichetta `nome`
+(`gh label create nome --color fbca04 --description "Proposta di nome inglese per un set o una carta"`).
+Senza, la creazione della issue da parte del Worker fallirebbe.
+
 ## Privacy
 
 Il Worker non conserva nulla oltre alla issue e alle foto su GitHub: solo il contatore KV (24 ore, chiave =
@@ -133,3 +206,8 @@ and `consent=true`. The Worker verifies Turnstile, validates, enforces `DAILY_LI
 HTTP 429 `daily_limit`), commits the photos to the `proposals` branch and opens an issue labelled `proposta`
 in the fixed format above. Approval (label `approvata`, by the owner) is handled by a GitHub Action
 (ticket 15). The Worker keeps no data beyond the issue.
+
+Name suggestions: `POST /v1/name-suggestions` takes JSON `{target: "set"|"card", lang, id, original, english,
+consent: true, installHash, turnstileToken}` (no photos), same Turnstile check, a separate daily counter
+(`n:<installHash>`, same `DAILY_LIMIT`), and opens an issue labelled `proposta` + `nome` whose
+```` ```json name-suggestion ```` block the `approve-name` job writes into `catalog/name-overrides.json`.

@@ -32,3 +32,10 @@ jobs:
           -s schema/extra-cards.schema.json -d catalog/extra-cards.json
       - name: Ids, sets and image files
         run: python3 scripts/check_extra.py catalog/extra-cards.json
+      - name: Name overrides, JSON Schema
+        run: >
+          npx --yes -p ajv-cli@5.0.0 -p ajv-formats@2.1.1
+          ajv validate --spec=draft7 -c ajv-formats
+          -s schema/name-overrides.schema.json -d catalog/name-overrides.json
+      - name: Name overrides, names and ids
+        run: python3 scripts/check_extra.py catalog/name-overrides.json
