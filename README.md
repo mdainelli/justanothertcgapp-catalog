@@ -2,7 +2,7 @@
 
 ## Italiano
 
-Repository di supporto di [JustAnotherTCGApp](https://github.com/mdainelli/justanothertcgapp). Contiene solo il
+Repository di supporto di [JustAnotherTCGApp](https://github.com/mdainelli/justanothertcgapp). Contiene il
 Worker Cloudflare in [`worker/`](worker/README.md) (piano gratuito) che serve gli avvisi eBay dell'app
 (`/ebay/search`, `/ebay/account-deletion`).
 
@@ -10,9 +10,13 @@ Non esistono piu' il catalogo extra, le proposte di carte, i suggerimenti di nom
 Action: l'app non invia piu' nulla e usa solo il catalogo TCGdex piu' i nomi giapponesi inclusi nell'app.
 Non viene raccolto alcun dato personale.
 
+- [`PACKS.md`](PACKS.md): pacchetti TCGdex settimanali per lingua (`languages.json`, `scripts/build_packs.py`, release `catalog-packs`).
+
 ## English
 
 Support repository of [JustAnotherTCGApp](https://github.com/mdainelli/justanothertcgapp). It only holds the
 Cloudflare Worker in [`worker/`](worker/README.md) (free plan) that serves the app's eBay alerts
 (`/ebay/search`, `/ebay/account-deletion`). The extra catalog, card proposals, English name suggestions and
 their GitHub Actions were removed: the app submits nothing any more. No personal data is collected.
+
+- [`PACKS.md`](PACKS.md): weekly TCGdex packs per language (`languages.json`, `scripts/build_packs.py`, release `catalog-packs`).

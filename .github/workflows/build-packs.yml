@@ -1,0 +1,45 @@
+name: Build catalog packs
+
+on:
+  schedule:
+    - cron: "17 3 * * 1" # every Monday 03:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write # create/update the `catalog-packs` release
+
+concurrency:
+  group: build-packs
+  cancel-in-progress: false
+
+env:
+  TAG: catalog-packs
+  BASE_URL: https://github.com/${{ github.repository }}/releases/download/catalog-packs
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5.3.0
+        with:
+          python-version: "3.12"
+      - name: Fetch the published index (if any)
+        run: curl -fsSL --retry 3 -o previous-index.json "$BASE_URL/index.json" || rm -f previous-index.json
+      - name: Build packs
+        run: python3 scripts/build_packs.py --languages languages.json --out dist --previous previous-index.json
+      - name: Publish changed packs
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Catalog packs" \
+            --notes "Weekly TCGdex catalog packs, see PACKS.md. Assets are replaced in place; do not edit."
+          while read -r lang; do
+            [ -n "$lang" ] && gh release upload "$TAG" "dist/$lang.json.gz" --clobber
+          done < dist/changed.txt
+          while read -r lang; do
+            [ -n "$lang" ] && gh release delete-asset "$TAG" "$lang.json.gz" --yes || true
+          done < dist/removed.txt
+          # The index goes last, so an app never sees an index pointing at a pack that is not there yet.
+          gh release upload "$TAG" dist/index.json --clobber
