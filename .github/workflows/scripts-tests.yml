@@ -1,0 +1,25 @@
+name: Scripts tests
+
+on:
+  push:
+    paths:
+      - "scripts/**"
+      - ".github/workflows/scripts-tests.yml"
+  pull_request:
+    paths:
+      - "scripts/**"
+      - ".github/workflows/scripts-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5.3.0
+        with:
+          python-version: "3.12"
+      - run: python3 -m pip install pillow==11.3.0 pytest==8.3.4
+      - run: python3 -m pytest scripts/tests -q

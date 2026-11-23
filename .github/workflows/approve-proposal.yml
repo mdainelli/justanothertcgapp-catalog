@@ -1,0 +1,122 @@
+name: Approve proposal
+
+# Marco (repo owner) adds the label "approvata" to a proposal issue (label "proposta"):
+# the card is added to catalog/extra-cards.json, photos are published as WebP, the issue is closed.
+# On any problem: nothing is committed, the issue gets an error comment + label "errore" and stays open.
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: catalog-write
+  cancel-in-progress: false
+
+jobs:
+  approve:
+    if: >
+      github.event.label.name == 'approvata' &&
+      github.event.sender.login == github.repository_owner &&
+      contains(github.event.issue.labels.*.name, 'proposta')
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE: ${{ github.event.issue.number }}
+      ERROR_FILE: ${{ runner.temp }}/error.txt
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5.3.0
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+
+      - name: Install Pillow
+        run: python3 -m pip install pillow==11.3.0
+
+      - name: Fetch proposal photos (branch proposals)
+        run: |
+          if ! git fetch --depth=1 origin proposals; then
+            echo "il branch \`proposals\` non esiste o non e' raggiungibile: le foto non sono disponibili" > "$ERROR_FILE"
+            exit 1
+          fi
+          git worktree add --detach "$RUNNER_TEMP/proposals" FETCH_HEAD
+
+      - name: Apply proposal to the catalog
+        id: approve
+        run: >
+          python3 scripts/approve_proposal.py approve
+          --body-file "$GITHUB_EVENT_PATH" --issue "$ISSUE"
+          --photos-dir "$RUNNER_TEMP/proposals" --error-file "$ERROR_FILE"
+
+      - name: Validate catalog (JSON Schema)
+        run: >
+          npx --yes -p ajv-cli@5.0.0 -p ajv-formats@2.1.1
+          ajv validate --spec=draft7 -c ajv-formats
+          -s schema/extra-cards.schema.json -d catalog/extra-cards.json
+          > "$RUNNER_TEMP/validate.log" 2>&1
+          || { { echo "il catalogo risultante non rispetta lo schema:"; tail -n 20 "$RUNNER_TEMP/validate.log"; } > "$ERROR_FILE"; exit 1; }
+
+      - name: Validate catalog (ids, sets, images)
+        run: >
+          python3 scripts/check_extra.py catalog/extra-cards.json > "$RUNNER_TEMP/check.log" 2>&1
+          || { { echo "il catalogo risultante non supera i controlli:"; tail -n 20 "$RUNNER_TEMP/check.log"; } > "$ERROR_FILE"; exit 1; }
+
+      - name: Commit and push to main
+        id: commit
+        env:
+          CARD_ID: ${{ steps.approve.outputs.card_id }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add catalog
+          git commit -m "Aggiunge $CARD_ID (proposta #$ISSUE)"
+          git push origin HEAD:main
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Delete proposal photos from branch proposals
+        continue-on-error: true
+        env:
+          PROPOSAL_ID: ${{ steps.approve.outputs.proposal_id }}
+        run: |
+          cd "$RUNNER_TEMP/proposals"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git fetch --depth=1 origin proposals
+            git reset --hard FETCH_HEAD
+            git rm -r -q --ignore-unmatch "proposals/$PROPOSAL_ID"
+            git diff --cached --quiet && exit 0
+            git commit -q -m "Rimuove le foto della proposta $PROPOSAL_ID (approvata in #$ISSUE)"
+            git push origin HEAD:proposals && exit 0
+            sleep 3
+          done
+          exit 1
+
+      - name: Comment, clear error label and close the issue
+        env:
+          CARD_ID: ${{ steps.approve.outputs.card_id }}
+          SHA: ${{ steps.commit.outputs.sha }}
+        run: |
+          gh issue edit "$ISSUE" --remove-label errore 2>/dev/null || true
+          gh issue close "$ISSUE" --reason completed \
+            --comment "✅ Proposta approvata: carta \`$CARD_ID\` aggiunta al catalogo extra (commit $SHA). Grazie!"
+
+      - name: Report failure on the issue
+        if: failure()
+        run: |
+          reason="$(cat "$ERROR_FILE" 2>/dev/null || true)"
+          [ -n "$reason" ] || reason="errore interno dell'automazione, vedi il log: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          printf '❌ Proposta non valida: %s\n\nCorreggi il JSON nel corpo della issue (o ripristina le foto), poi togli e rimetti l'"'"'etichetta `approvata` per riprovare.\n' "$reason" > "$RUNNER_TEMP/comment.md"
+          gh issue comment "$ISSUE" --body-file "$RUNNER_TEMP/comment.md"
+          gh issue edit "$ISSUE" --add-label errore --remove-label approvata

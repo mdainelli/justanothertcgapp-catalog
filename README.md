@@ -13,6 +13,9 @@ le altre, con un piccolo badge "Catalogo extra".
 - `schema/extra-cards.schema.json`: JSON Schema del formato.
 - [`FORMAT.md`](FORMAT.md): specifica completa (campi, regole sugli id, immagini, versioni, come la usa l'app).
 - `.github/workflows/validate.yml`: controlla schema, id e presenza delle immagini a ogni push e pull request.
+- `.github/workflows/approve-proposal.yml`, `cleanup-proposal.yml`, `scripts/approve_proposal.py`: approvazione
+  automatica delle proposte con l'etichetta `approvata` (vedi "Approvazione delle proposte" in [`FORMAT.md`](FORMAT.md),
+  incluso come creare le etichette `proposta`, `approvata`, `errore`).
 
 Come si arriva qui: dall'app si propone una carta (dati e foto senza EXIF) e si apre una issue; quando il
 maintainer la etichetta `approvata`, una GitHub Action aggiunge la carta al JSON e le foto alla cartella
@@ -30,3 +33,8 @@ downloads `catalog/extra-cards.json` together with the TCGdex catalog and shows 
 with a small "Extra catalog" badge. The format is specified in [`FORMAT.md`](FORMAT.md) and validated by
 `schema/extra-cards.schema.json`; images live under `catalog/images/<lang>/<cardId>/`. An empty document is
 valid and the app copes with a missing or broken file.
+
+Proposals arrive as issues labelled `proposta`; when the owner adds `approvata`, a GitHub Action converts the
+photos to WebP, adds the card to the catalog, validates, commits and closes the issue (on errors it comments
+`❌ Proposta non valida: ...`, labels `errore` and commits nothing). Setup (labels, Actions write permission)
+is described in FORMAT.md, "Approvazione delle proposte".
