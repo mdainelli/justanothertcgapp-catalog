@@ -2,41 +2,17 @@
 
 ## Italiano
 
-Catalogo extra di [JustAnotherTCGApp](https://github.com/mdainelli/justanothertcgapp): le carte (e gli
-eventuali set) che TCGdex non ha, per esempio errori di stampa, promo rare o carte mancanti, approvate a
-mano dal maintainer. L'app scarica questo file insieme al catalogo TCGdex e mostra queste carte come tutte
-le altre, con un piccolo badge "Catalogo extra".
+Repository di supporto di [JustAnotherTCGApp](https://github.com/mdainelli/justanothertcgapp). Contiene solo il
+Worker Cloudflare in [`worker/`](worker/README.md) (piano gratuito) che serve gli avvisi eBay dell'app
+(`/ebay/search`, `/ebay/account-deletion`).
 
-- `catalog/extra-cards.json`: il file pubblicato (formato v1).
-  URL: <https://raw.githubusercontent.com/mdainelli/justanothertcgapp-catalog/main/catalog/extra-cards.json>
-- `catalog/images/<lingua>/<idCarta>/front.webp` e `back.webp`: immagini delle carte.
-- `schema/extra-cards.schema.json`: JSON Schema del formato.
-- [`FORMAT.md`](FORMAT.md): specifica completa (campi, regole sugli id, immagini, versioni, come la usa l'app).
-- [`PROPOSALS.md`](PROPOSALS.md): contratto delle proposte dall'app (endpoint, campi, formato della issue); il
-  server e' in [`worker/`](worker/README.md) (Cloudflare Worker, piano gratuito).
-- `.github/workflows/validate.yml`: controlla schema, id e presenza delle immagini a ogni push e pull request.
-- `.github/workflows/approve-proposal.yml`, `cleanup-proposal.yml`, `scripts/approve_proposal.py`: approvazione
-  automatica delle proposte con l'etichetta `approvata` (vedi "Approvazione delle proposte" in [`FORMAT.md`](FORMAT.md),
-  incluso come creare le etichette `proposta`, `approvata`, `errore`).
-
-Come si arriva qui: dall'app si propone una carta (dati e foto senza EXIF) e si apre una issue; quando il
-maintainer la etichetta `approvata`, una GitHub Action aggiunge la carta al JSON e le foto alla cartella
-`catalog/images/`. Non serve modificare il JSON a mano, ma si puo' fare: basta una pull request che passi
-la validazione.
-
-Nessun dato personale viene raccolto: l'app scarica solo questo file e le immagini da
-`raw.githubusercontent.com`.
+Non esistono piu' il catalogo extra, le proposte di carte, i suggerimenti di nome inglese e le relative GitHub
+Action: l'app non invia piu' nulla e usa solo il catalogo TCGdex piu' i nomi giapponesi inclusi nell'app.
+Non viene raccolto alcun dato personale.
 
 ## English
 
-Extra catalog for [JustAnotherTCGApp](https://github.com/mdainelli/justanothertcgapp): cards (and sets) that
-TCGdex lacks, such as misprints, rare promos or missing cards, approved by hand by the maintainer. The app
-downloads `catalog/extra-cards.json` together with the TCGdex catalog and shows these cards like any other,
-with a small "Extra catalog" badge. The format is specified in [`FORMAT.md`](FORMAT.md) and validated by
-`schema/extra-cards.schema.json`; images live under `catalog/images/<lang>/<cardId>/`. The proposal pipeline (app → Worker → issue → approval) is described in [`PROPOSALS.md`](PROPOSALS.md). An empty document is
-valid and the app copes with a missing or broken file.
-
-Proposals arrive as issues labelled `proposta`; when the owner adds `approvata`, a GitHub Action converts the
-photos to WebP, adds the card to the catalog, validates, commits and closes the issue (on errors it comments
-`❌ Proposta non valida: ...`, labels `errore` and commits nothing). Setup (labels, Actions write permission)
-is described in FORMAT.md, "Approvazione delle proposte".
+Support repository of [JustAnotherTCGApp](https://github.com/mdainelli/justanothertcgapp). It only holds the
+Cloudflare Worker in [`worker/`](worker/README.md) (free plan) that serves the app's eBay alerts
+(`/ebay/search`, `/ebay/account-deletion`). The extra catalog, card proposals, English name suggestions and
+their GitHub Actions were removed: the app submits nothing any more. No personal data is collected.

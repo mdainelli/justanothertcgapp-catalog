@@ -1,12 +1,9 @@
 name: Worker deploy
 
-# Publishes the proposals Worker on Cloudflare (free plan). Run it by hand from Actions > Worker deploy.
+# Publishes the eBay Worker on Cloudflare (free plan). Run it by hand from Actions > Worker deploy.
 # Needs (Settings > Secrets and variables > Actions):
 #   secrets   CLOUDFLARE_API_TOKEN   token from the "Edit Cloudflare Workers" template
 #             CLOUDFLARE_ACCOUNT_ID  Cloudflare account id
-#             TURNSTILE_SECRET       Turnstile widget secret key
-#             CATALOG_GITHUB_TOKEN   fine-grained token, this repo only, Contents RW + Issues RW
-#   variable  TURNSTILE_SITE_KEY     Turnstile widget site key (public)
 # Optional, for the eBay alerts (/ebay/search and /ebay/account-deletion); each one is set on the Worker only when non-empty:
 #   (EBAY_CLIENT_ID, the public App ID, is in worker/wrangler.toml [vars])
 #   secrets   EBAY_CLIENT_SECRET       eBay production keyset Cert ID
@@ -32,20 +29,15 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
       KV_TITLE: justanothertcgapp-proposals-LIMITS
     steps:
       - name: Check configuration
-        env:
-          TURNSTILE_SECRET: ${{ secrets.TURNSTILE_SECRET }}
-          CATALOG_GITHUB_TOKEN: ${{ secrets.CATALOG_GITHUB_TOKEN }}
         working-directory: .
         run: |
           missing=""
-          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID TURNSTILE_SECRET CATALOG_GITHUB_TOKEN; do
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
             if [ -z "${!name}" ]; then missing="$missing secret:$name"; fi
           done
-          if [ -z "$TURNSTILE_SITE_KEY" ]; then missing="$missing variable:TURNSTILE_SITE_KEY"; fi
           if [ -n "$missing" ]; then
             echo "::error::Missing configuration:$missing (see worker/README.md)"
             exit 1
@@ -74,7 +66,7 @@ jobs:
 
       - name: Fill wrangler.toml
         run: |
-          sed -i "s/REPLACE_WITH_KV_NAMESPACE_ID/${KV_ID}/; s/REPLACE_WITH_TURNSTILE_SITE_KEY/${TURNSTILE_SITE_KEY}/" wrangler.toml
+          sed -i "s/REPLACE_WITH_KV_NAMESPACE_ID/${KV_ID}/" wrangler.toml
           if grep -q REPLACE_WITH wrangler.toml; then echo "::error::wrangler.toml still has placeholders"; exit 1; fi
 
       - name: Deploy
@@ -85,13 +77,9 @@ jobs:
 
       - name: Set Worker secrets
         env:
-          TURNSTILE_SECRET: ${{ secrets.TURNSTILE_SECRET }}
-          CATALOG_GITHUB_TOKEN: ${{ secrets.CATALOG_GITHUB_TOKEN }}
           EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
           EBAY_VERIFICATION_TOKEN: ${{ secrets.EBAY_VERIFICATION_TOKEN }}
         run: |
-          printf '%s' "$TURNSTILE_SECRET" | npx wrangler secret put TURNSTILE_SECRET > /dev/null
-          printf '%s' "$CATALOG_GITHUB_TOKEN" | npx wrangler secret put GITHUB_TOKEN > /dev/null
           for name in EBAY_CLIENT_SECRET EBAY_VERIFICATION_TOKEN; do
             if [ -n "${!name}" ]; then
               printf '%s' "${!name}" | npx wrangler secret put "$name" > /dev/null
@@ -106,7 +94,6 @@ jobs:
           for i in 1 2 3 4 5 6; do
             if curl -fsS "$WORKER_URL/health" | grep -q '"ok":true'; then
               echo "### Worker online: $WORKER_URL" >> "$GITHUB_STEP_SUMMARY"
-              echo "Imposta questo indirizzo come variabile PROPOSAL_WORKER_URL nel repository dell'app." >> "$GITHUB_STEP_SUMMARY"
               echo "Endpoint eBay Marketplace Account Deletion: $WORKER_URL/ebay/account-deletion" >> "$GITHUB_STEP_SUMMARY"
               exit 0
             fi

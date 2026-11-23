@@ -3,45 +3,14 @@ export interface KVLike {
   put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
 }
 
+export type FetchFn = (input: string, init?: RequestInit) => Promise<Response>;
+
 export interface Env {
   LIMITS: KVLike;
-  DAILY_LIMIT?: string;
-  TURNSTILE_SITE_KEY: string;
-  CATALOG_REPO: string;
-  TURNSTILE_SECRET: string;
-  GITHUB_TOKEN: string;
   EBAY_CLIENT_ID?: string;
   EBAY_CLIENT_SECRET?: string;
   EBAY_VERIFICATION_TOKEN?: string;
   EBAY_RATE_LIMITER?: { limit(opts: { key: string }): Promise<{ success: boolean }> };
-}
-
-export type Variants = { normal: boolean; reverse: boolean; holo: boolean; firstEdition: boolean };
-
-/** Normalised proposal: every field present (description only when given). */
-export interface Proposal {
-  formatVersion: 1;
-  lang: string;
-  setId: string | null;
-  setName: string | null;
-  localId: string;
-  name: string;
-  category: "Pokemon" | "Trainer" | "Energy" | null;
-  rarity: string | null;
-  illustrator: string | null;
-  types: string[];
-  hp: number | null;
-  variants: Variants;
-  description?: string;
-}
-
-/** Normalised name suggestion: a name in a catalog language (ja) paired with a suggested English one. */
-export interface NameSuggestion {
-  target: "set" | "card";
-  lang: string;
-  id: string;
-  original: string;
-  english: string;
 }
 
 /** Error with the HTTP status and the machine code returned to the app. */
