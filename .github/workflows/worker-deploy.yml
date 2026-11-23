@@ -7,6 +7,10 @@ name: Worker deploy
 #             TURNSTILE_SECRET       Turnstile widget secret key
 #             CATALOG_GITHUB_TOKEN   fine-grained token, this repo only, Contents RW + Issues RW
 #   variable  TURNSTILE_SITE_KEY     Turnstile widget site key (public)
+# Optional, for the eBay alerts (/ebay/search and /ebay/account-deletion); each one is set on the Worker only when non-empty:
+#   variable  EBAY_CLIENT_ID           eBay production keyset App ID (public)
+#   secrets   EBAY_CLIENT_SECRET       eBay production keyset Cert ID
+#             EBAY_VERIFICATION_TOKEN  32-80 chars [A-Za-z0-9_-], same value entered in the eBay developer portal
 # The KV namespace is created on the first run and reused afterwards. Secrets are never printed.
 
 on:
@@ -83,9 +87,18 @@ jobs:
         env:
           TURNSTILE_SECRET: ${{ secrets.TURNSTILE_SECRET }}
           CATALOG_GITHUB_TOKEN: ${{ secrets.CATALOG_GITHUB_TOKEN }}
+          EBAY_CLIENT_ID: ${{ vars.EBAY_CLIENT_ID }}
+          EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
+          EBAY_VERIFICATION_TOKEN: ${{ secrets.EBAY_VERIFICATION_TOKEN }}
         run: |
           printf '%s' "$TURNSTILE_SECRET" | npx wrangler secret put TURNSTILE_SECRET > /dev/null
           printf '%s' "$CATALOG_GITHUB_TOKEN" | npx wrangler secret put GITHUB_TOKEN > /dev/null
+          for name in EBAY_CLIENT_ID EBAY_CLIENT_SECRET EBAY_VERIFICATION_TOKEN; do
+            if [ -n "${!name}" ]; then
+              printf '%s' "${!name}" | npx wrangler secret put "$name" > /dev/null
+              echo "$name set."
+            fi
+          done
           echo "Secrets set."
 
       - name: Health check
@@ -95,6 +108,7 @@ jobs:
             if curl -fsS "$WORKER_URL/health" | grep -q '"ok":true'; then
               echo "### Worker online: $WORKER_URL" >> "$GITHUB_STEP_SUMMARY"
               echo "Imposta questo indirizzo come variabile PROPOSAL_WORKER_URL nel repository dell'app." >> "$GITHUB_STEP_SUMMARY"
+              echo "Endpoint eBay Marketplace Account Deletion: $WORKER_URL/ebay/account-deletion" >> "$GITHUB_STEP_SUMMARY"
               exit 0
             fi
             sleep 10

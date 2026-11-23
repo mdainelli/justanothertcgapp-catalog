@@ -15,6 +15,12 @@ invocation_logs = false
 binding = "LIMITS"
 id = "REPLACE_WITH_KV_NAMESPACE_ID"
 
+# eBay search: 10 searches per minute per install (Workers Rate Limiting, free, needs no id).
+[[ratelimits]]
+name = "EBAY_RATE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }
+
 [vars]
 DAILY_LIMIT = "3"
 TURNSTILE_SITE_KEY = "REPLACE_WITH_TURNSTILE_SITE_KEY"
@@ -23,3 +29,4 @@ CATALOG_REPO = "mdainelli/justanothertcgapp-catalog"
 # Secrets (NOT here, set with `npx wrangler secret put <NAME>`):
 #   TURNSTILE_SECRET  Turnstile widget secret key
 #   GITHUB_TOKEN      fine-grained token, catalog repo only, Contents RW + Issues RW
+#   EBAY_CLIENT_ID, EBAY_CLIENT_SECRET, EBAY_VERIFICATION_TOKEN  optional, eBay alerts (see README)

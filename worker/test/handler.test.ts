@@ -138,7 +138,7 @@ describe("POST /v1/proposals", () => {
 describe("other routes", () => {
   it("GET /health", async () => {
     const { res, body } = await run(new Request("https://w.example/health"));
-    expect([res.status, body]).toEqual([200, { ok: true }]);
+    expect([res.status, body]).toEqual([200, { ok: true, ebay: false }]);
   });
   it("GET /turnstile serves the widget with a strict CSP", async () => {
     const res = await handleRequest(new Request("https://w.example/turnstile"), makeEnv());

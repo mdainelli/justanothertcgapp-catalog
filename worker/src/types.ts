@@ -10,6 +10,10 @@ export interface Env {
   CATALOG_REPO: string;
   TURNSTILE_SECRET: string;
   GITHUB_TOKEN: string;
+  EBAY_CLIENT_ID?: string;
+  EBAY_CLIENT_SECRET?: string;
+  EBAY_VERIFICATION_TOKEN?: string;
+  EBAY_RATE_LIMITER?: { limit(opts: { key: string }): Promise<{ success: boolean }> };
 }
 
 export type Variants = { normal: boolean; reverse: boolean; holo: boolean; firstEdition: boolean };
