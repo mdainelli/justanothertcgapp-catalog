@@ -1,0 +1,31 @@
+name: Worker
+
+on:
+  push:
+    paths:
+      - "worker/**"
+      - ".github/workflows/worker.yml"
+  pull_request:
+    paths:
+      - "worker/**"
+      - ".github/workflows/worker.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npx tsc --noEmit

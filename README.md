@@ -12,6 +12,8 @@ le altre, con un piccolo badge "Catalogo extra".
 - `catalog/images/<lingua>/<idCarta>/front.webp` e `back.webp`: immagini delle carte.
 - `schema/extra-cards.schema.json`: JSON Schema del formato.
 - [`FORMAT.md`](FORMAT.md): specifica completa (campi, regole sugli id, immagini, versioni, come la usa l'app).
+- [`PROPOSALS.md`](PROPOSALS.md): contratto delle proposte dall'app (endpoint, campi, formato della issue); il
+  server e' in [`worker/`](worker/README.md) (Cloudflare Worker, piano gratuito).
 - `.github/workflows/validate.yml`: controlla schema, id e presenza delle immagini a ogni push e pull request.
 - `.github/workflows/approve-proposal.yml`, `cleanup-proposal.yml`, `scripts/approve_proposal.py`: approvazione
   automatica delle proposte con l'etichetta `approvata` (vedi "Approvazione delle proposte" in [`FORMAT.md`](FORMAT.md),
@@ -31,7 +33,7 @@ Extra catalog for [JustAnotherTCGApp](https://github.com/mdainelli/justanothertc
 TCGdex lacks, such as misprints, rare promos or missing cards, approved by hand by the maintainer. The app
 downloads `catalog/extra-cards.json` together with the TCGdex catalog and shows these cards like any other,
 with a small "Extra catalog" badge. The format is specified in [`FORMAT.md`](FORMAT.md) and validated by
-`schema/extra-cards.schema.json`; images live under `catalog/images/<lang>/<cardId>/`. An empty document is
+`schema/extra-cards.schema.json`; images live under `catalog/images/<lang>/<cardId>/`. The proposal pipeline (app → Worker → issue → approval) is described in [`PROPOSALS.md`](PROPOSALS.md). An empty document is
 valid and the app copes with a missing or broken file.
 
 Proposals arrive as issues labelled `proposta`; when the owner adds `approvata`, a GitHub Action converts the
