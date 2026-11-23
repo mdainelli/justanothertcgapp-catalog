@@ -37,6 +37,17 @@ class BuildError(Exception):
     pass
 
 
+class NotFound(BuildError):
+    """HTTP 404 from TCGdex (e.g. a card listed in a set whose own endpoint does not exist)."""
+
+
+# A few cards listed in a set can have no detail endpoint on TCGdex (for example "exu-?", Unown "?",
+# whose id cannot be requested). They are kept with the brief data from the set list; the build only
+# fails when more than this share of a language's cards is missing.
+MAX_MISSING_SHARE = 0.01
+MIN_MISSING_ALLOWED = 5
+
+
 def http_get_json(url, retries=RETRIES, sleep=time.sleep, opener=urllib.request.urlopen):
     last = None
     for attempt in range(retries):
@@ -46,6 +57,8 @@ def http_get_json(url, retries=RETRIES, sleep=time.sleep, opener=urllib.request.
                 return json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
             last = f"HTTP {e.code}"
+            if e.code == 404:
+                raise NotFound(f"{url}: {last}")
             if e.code not in RETRY_STATUS:
                 raise BuildError(f"{url}: {last}")
         except (urllib.error.URLError, TimeoutError, ConnectionError, json.JSONDecodeError) as e:
@@ -74,6 +87,13 @@ def clean_card(card):
     return {k: v for k, v in card.items() if k not in DROP_CARD_FIELDS}
 
 
+def brief_card(brief, set_doc):
+    """Card built from the set's card list when its detail endpoint is missing."""
+    card = clean_card(dict(brief))
+    card["set"] = {k: set_doc[k] for k in ("id", "name") if k in set_doc}
+    return card
+
+
 def canonical(obj):
     return json.dumps(obj, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
@@ -88,9 +108,27 @@ def fetch_pack_content(lang, get=http_get_json, only_set=None, concurrency=CONCU
         raise BuildError(f"{lang}: no sets")
     with concurrent.futures.ThreadPoolExecutor(concurrency) as pool:
         sets = list(pool.map(lambda i: get(f"{API}/{lang}/sets/{i}"), ids))
-        card_ids = sorted({c["id"] for s in sets for c in s.get("cards", [])})
+        briefs = {}
+        for s in sets:
+            for c in s.get("cards", []):
+                briefs.setdefault(c["id"], (c, s))
+        card_ids = sorted(briefs)
         log(f"{lang}: {len(sets)} sets, {len(card_ids)} cards")
-        cards = list(pool.map(lambda i: clean_card(get(f"{API}/{lang}/cards/{i}")), card_ids))
+        missing = []
+
+        def fetch_card(card_id):
+            try:
+                return clean_card(get(f"{API}/{lang}/cards/{card_id}"))
+            except NotFound:
+                missing.append(card_id)
+                return brief_card(*briefs[card_id])
+
+        cards = list(pool.map(fetch_card, card_ids))
+    if missing:
+        log(f"{lang}: {len(missing)} card(s) without details, kept with set-list data: {', '.join(sorted(missing))}")
+        allowed = max(MIN_MISSING_ALLOWED, int(len(card_ids) * MAX_MISSING_SHARE))
+        if len(missing) > allowed:
+            raise BuildError(f"{lang}: {len(missing)} cards missing details (max {allowed})")
     return {"schemaVersion": SCHEMA_VERSION, "lang": lang, "sets": sets, "cards": cards}
 
 
