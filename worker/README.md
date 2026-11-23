@@ -93,7 +93,7 @@ e `/health` mostra `"ebay": false`.
    openssl rand -hex 24   # 48 caratteri esadecimali
    ```
 4. In questo repository, *Settings*, *Secrets and variables*, *Actions*:
-   - variabile `EBAY_CLIENT_ID` (e' pubblica);
+   - (l'App ID `EBAY_CLIENT_ID` è già in `worker/wrangler.toml`, è pubblico);
    - secret `EBAY_CLIENT_SECRET` e `EBAY_VERIFICATION_TOKEN`.
 5. Lancia **Worker deploy** (*Actions*, *Run workflow*): i valori non vuoti vengono impostati sul Worker e il
    riepilogo mostra l'endpoint di cancellazione account.
