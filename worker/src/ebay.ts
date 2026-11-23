@@ -108,7 +108,7 @@ export function buildSearchUrl(p: Pick<SearchParams, "q" | "max" | "opts" | "sit
   u.searchParams.set("q", p.q);
   u.searchParams.set("filter", `price:[..${p.max}],priceCurrency:${currency},buyingOptions:{${options}}`);
   u.searchParams.set("sort", "newlyListed");
-  u.searchParams.set("limit", "50");
+  u.searchParams.set("limit", "200");
   return u.toString();
 }
 

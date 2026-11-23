@@ -146,7 +146,7 @@ describe("GET /ebay/search", () => {
     expect(u.searchParams.get("q")).toBe(Q);
     expect(u.searchParams.get("filter")).toBe("price:[..19.9],priceCurrency:EUR,buyingOptions:{FIXED_PRICE}");
     expect(u.searchParams.get("sort")).toBe("newlyListed");
-    expect(u.searchParams.get("limit")).toBe("50");
+    expect(u.searchParams.get("limit")).toBe("200");
     expect(srch!.headers.Authorization).toBe("Bearer tok-1");
     expect(srch!.headers["X-EBAY-C-MARKETPLACE-ID"]).toBe("EBAY_IT");
     expect(srch!.headers["Accept-Language"]).toBeUndefined();
