@@ -1,0 +1,34 @@
+name: Validate extra catalog
+
+on:
+  push:
+    paths:
+      - "catalog/**"
+      - "schema/**"
+      - "scripts/**"
+      - ".github/workflows/validate.yml"
+  pull_request:
+    paths:
+      - "catalog/**"
+      - "schema/**"
+      - "scripts/**"
+      - ".github/workflows/validate.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - name: JSON Schema
+        run: >
+          npx --yes -p ajv-cli@5.0.0 -p ajv-formats@2.1.1
+          ajv validate --spec=draft7 -c ajv-formats
+          -s schema/extra-cards.schema.json -d catalog/extra-cards.json
+      - name: Ids, sets and image files
+        run: python3 scripts/check_extra.py catalog/extra-cards.json

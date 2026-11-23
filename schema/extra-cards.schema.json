@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/mdainelli/justanothertcgapp-catalog/main/schema/extra-cards.schema.json",
+  "title": "JustAnotherTCGApp extra catalog, format v1",
+  "description": "Cards and sets approved by the maintainer that TCGdex does not have. See FORMAT.md.",
+  "type": "object",
+  "required": ["formatVersion", "updatedAt", "sets", "cards"],
+  "properties": {
+    "formatVersion": { "const": 1 },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "sets": { "type": "array", "items": { "$ref": "#/definitions/extraSet" } },
+    "cards": { "type": "array", "items": { "$ref": "#/definitions/extraCard" } }
+  },
+  "additionalProperties": true,
+  "definitions": {
+    "lang": {
+      "enum": ["en", "fr", "es", "es-mx", "it", "pt", "pt-br", "de", "nl", "pl", "ru", "ja", "ko", "zh-tw", "zh-cn", "id", "th"]
+    },
+    "extraId": {
+      "type": "string",
+      "pattern": "^x-[a-z0-9]+(-[a-z0-9]+)*$",
+      "maxLength": 100
+    },
+    "setRef": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+      "maxLength": 100
+    },
+    "text": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "imagePath": {
+      "type": "string",
+      "pattern": "^catalog/images/[a-z-]+/[A-Za-z0-9._-]+/(front|back)\\.webp$"
+    },
+    "extraSet": {
+      "type": "object",
+      "required": ["id", "lang", "name"],
+      "properties": {
+        "id": { "$ref": "#/definitions/extraId" },
+        "lang": { "$ref": "#/definitions/lang" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "series": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "releaseDate": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "logo": {
+          "type": "string",
+          "pattern": "^catalog/images/[a-z-]+/sets/x-[a-z0-9-]+/logo\\.webp$"
+        },
+        "cardCountOfficial": { "type": "integer", "minimum": 0, "maximum": 100000 }
+      },
+      "additionalProperties": true
+    },
+    "extraCard": {
+      "type": "object",
+      "required": ["id", "lang", "setId", "localId", "name"],
+      "properties": {
+        "id": { "$ref": "#/definitions/extraId" },
+        "lang": { "$ref": "#/definitions/lang" },
+        "setId": { "$ref": "#/definitions/setRef" },
+        "localId": { "type": "string", "minLength": 1, "maxLength": 20 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "category": { "enum": ["Pokemon", "Trainer", "Energy"] },
+        "rarity": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "illustrator": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "types": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 50 },
+          "maxItems": 4
+        },
+        "hp": { "type": "integer", "minimum": 0, "maximum": 9999 },
+        "variants": {
+          "type": "object",
+          "properties": {
+            "normal": { "type": "boolean" },
+            "reverse": { "type": "boolean" },
+            "holo": { "type": "boolean" },
+            "firstEdition": { "type": "boolean" }
+          },
+          "additionalProperties": true
+        },
+        "description": { "$ref": "#/definitions/text" },
+        "images": {
+          "type": "object",
+          "properties": {
+            "front": { "$ref": "#/definitions/imagePath" },
+            "back": { "$ref": "#/definitions/imagePath" }
+          },
+          "additionalProperties": true
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "issue": { "type": "integer", "minimum": 1 },
+            "approvedAt": { "type": "string", "format": "date-time" }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
