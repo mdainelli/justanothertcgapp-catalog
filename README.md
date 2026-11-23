@@ -10,6 +10,7 @@ le altre, con un piccolo badge "Catalogo extra".
 - `catalog/extra-cards.json`: il file pubblicato (formato v1).
   URL: <https://raw.githubusercontent.com/mdainelli/justanothertcgapp-catalog/main/catalog/extra-cards.json>
 - `catalog/images/<lingua>/<idCarta>/front.webp` e `back.webp`: immagini delle carte.
+- [`PACKS.md`](PACKS.md): pacchetti TCGdex settimanali per lingua (`languages.json`, `scripts/build_packs.py`, release `catalog-packs`).
 - `schema/extra-cards.schema.json`: JSON Schema del formato.
 - [`FORMAT.md`](FORMAT.md): specifica completa (campi, regole sugli id, immagini, versioni, come la usa l'app).
 - [`PROPOSALS.md`](PROPOSALS.md): contratto delle proposte dall'app (endpoint, campi, formato della issue); il
