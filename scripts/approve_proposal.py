@@ -5,6 +5,7 @@ Contract with the proposal Worker: see FORMAT.md ("Approvazione delle proposte")
 
 CLI:
   approve_proposal.py approve --body-file F --issue N --photos-dir D [--root R] [--error-file E]
+  approve_proposal.py approve-name --body-file F [--root R] [--error-file E]   # name suggestion (label `nome`)
   approve_proposal.py proposal-id --body-file F        # prints the proposalId (used by cleanup)
 
 `--body-file` may be a plain text file or a GitHub event payload JSON (issue.body is used).
@@ -34,6 +35,11 @@ MAX_ID = 100
 MAX_SIDE = 1200
 WEBP_QUALITY = 85
 CATALOG = "catalog/extra-cards.json"
+NAME_MARKER = "<!-- justanothertcgapp-name-suggestion v1 -->"
+NAME_FENCE_RE = re.compile(r"^```json name-suggestion[ \t]*\n(.*?)\n```[ \t]*$", re.S | re.M)
+NAME_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9\-._]{0,59}$")
+NAME_OVERRIDES = "catalog/name-overrides.json"
+ENGLISH_PUNCT = " '\u2019.,:!?&+-\u2013()/\u00b7\u2640\u2642"
 
 
 class ProposalError(Exception):
@@ -291,6 +297,114 @@ def approve(body, issue_number, root, photos_dir, now=None):
     return card["id"], p["proposalId"]
 
 
+# ---------------------------------------------------------------- name suggestions
+
+def validate_english_name(name):
+    """Return the English name or raise ProposalError. Same rules as the Worker: 1-100 chars, Latin/Greek
+    letters, ASCII digits and basic punctuation, no links."""
+    if not isinstance(name, str):
+        raise ProposalError("`english` deve essere una stringa")
+    name = unicodedata.normalize("NFC", name.strip())
+    if not 1 <= len(name) <= 100:
+        raise ProposalError("`english` deve avere tra 1 e 100 caratteri")
+
+    def ok(c):
+        if c in ENGLISH_PUNCT:
+            return True
+        if c in "0123456789":
+            return True
+        if unicodedata.category(c).startswith("L"):
+            return unicodedata.name(c, "").startswith(("LATIN", "GREEK"))
+        return False
+
+    if not all(ok(c) for c in name) or not (name[0].isalnum() and ok(name[0])):
+        raise ProposalError("`english` ammette solo lettere latine, cifre e punteggiatura semplice")
+    if re.search(r"://|www\.|\b[\w-]+\.(com|net|org|io|dev|app|me|it|co|gg|ly|xyz|info|biz|ru|cn|jp)\b", name, re.I):
+        raise ProposalError("`english` non puo' contenere link")
+    return name
+
+
+def parse_name_issue_body(body):
+    """Return the name-suggestion dict found in the issue body (marker + ```json name-suggestion block)."""
+    if not isinstance(body, str) or not body.strip():
+        raise ProposalError("il corpo della issue e' vuoto")
+    body = body.replace("\r\n", "\n").replace("\r", "\n")
+    pos = body.find(NAME_MARKER)
+    if pos < 0:
+        raise ProposalError(f"manca il marcatore `{NAME_MARKER}` all'inizio del corpo")
+    m = NAME_FENCE_RE.search(body, pos + len(NAME_MARKER))
+    if not m:
+        raise ProposalError("manca il blocco ```json name-suggestion ... ``` dopo il marcatore")
+    try:
+        data = json.loads(m.group(1))
+    except json.JSONDecodeError as e:
+        raise ProposalError(f"JSON non valido nel blocco `json name-suggestion` (riga {e.lineno}, colonna {e.colno}: {e.msg})")
+    if not isinstance(data, dict):
+        raise ProposalError("il blocco `json name-suggestion` deve contenere un oggetto JSON")
+    return data
+
+
+def validate_name_suggestion(data):
+    if data.get("formatVersion") != 1 or isinstance(data.get("formatVersion"), bool):
+        raise ProposalError("`formatVersion` deve essere 1")
+    target = data.get("target")
+    if target not in ("set", "card"):
+        raise ProposalError(f"`target` non valido: {target!r} (set o card)")
+    lang = data.get("lang")
+    if lang not in LANGS:
+        raise ProposalError(f"`lang` non valida: {lang!r} (ammesse: {' '.join(LANGS)})")
+    id_ = data.get("id")
+    if not isinstance(id_, str) or not NAME_ID_RE.match(id_):
+        raise ProposalError(f"`id` non valido: {id_!r}")
+    original = _str(data, "original", required=True, max_len=100)
+    proposal_id = data.get("proposalId")
+    if not isinstance(proposal_id, str) or not re.match(r"^n-\d{8}-[0-9a-f]{8}$", proposal_id):
+        raise ProposalError("`proposalId` mancante o non valido (atteso n-YYYYMMDD-<8 hex>)")
+    return {"target": target, "lang": lang, "id": id_, "original": original,
+            "english": validate_english_name(data.get("english")), "proposalId": proposal_id}
+
+
+def empty_overrides():
+    return {"version": 1, "sets": {}, "cards": {}}
+
+
+def load_overrides(path):
+    """Read name-overrides.json; a missing file is an empty document."""
+    if not os.path.exists(path):
+        return empty_overrides()
+    try:
+        with open(path, encoding="utf-8") as f:
+            doc = json.load(f)
+    except (OSError, ValueError):
+        raise ProposalError("`catalog/name-overrides.json` non e' leggibile (errore di sistema, non della proposta)")
+    if not isinstance(doc, dict) or doc.get("version") != 1 or not isinstance(doc.get("sets"), dict) \
+            or not isinstance(doc.get("cards"), dict):
+        raise ProposalError("`catalog/name-overrides.json` ha un formato non valido (errore di sistema)")
+    return doc
+
+
+def dump_overrides(doc):
+    """Stable output: keys sorted at every level below the top, top-level order version/sets/cards."""
+    out = {"version": 1}
+    for kind in ("sets", "cards"):
+        out[kind] = {lang: {k: doc[kind][lang][k] for k in sorted(doc[kind][lang])} for lang in sorted(doc[kind])}
+    return json.dumps(out, indent=2, ensure_ascii=False) + "\n"
+
+
+def approve_name(body, root):
+    """Apply a name suggestion; the later approval for the same (kind, lang, id) replaces the earlier one.
+    Returns (kind, lang, id, english, proposal_id). Writes nothing unless everything checked out."""
+    p = validate_name_suggestion(parse_name_issue_body(body))
+    path = os.path.join(root, NAME_OVERRIDES)
+    doc = load_overrides(path)
+    kind = "sets" if p["target"] == "set" else "cards"
+    doc[kind].setdefault(p["lang"], {})[p["id"]] = p["english"]
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(dump_overrides(doc))
+    return kind, p["lang"], p["id"], p["english"], p["proposalId"]
+
+
 def _load_body(path):
     with open(path, encoding="utf-8") as f:
         text = f.read()
@@ -319,6 +433,10 @@ def main(argv=None):
     a.add_argument("--photos-dir", required=True)
     a.add_argument("--root", default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     a.add_argument("--error-file")
+    n = sub.add_parser("approve-name")
+    n.add_argument("--body-file", required=True)
+    n.add_argument("--root", default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    n.add_argument("--error-file")
     c = sub.add_parser("proposal-id")
     c.add_argument("--body-file", required=True)
     args = ap.parse_args(argv)
@@ -331,11 +449,18 @@ def main(argv=None):
             print(pid)
             _set_output("proposal_id", pid)
             return 0
+        if args.cmd == "approve-name":
+            kind, lang, id_, english, pid = approve_name(body, args.root)
+            print(f"{lang}/{id_} {english}")
+            _set_output("name_key", f"{lang}/{id_}")
+            _set_output("english", english)
+            _set_output("proposal_id", pid)
+            return 0
         card_id, pid = approve(body, args.issue, args.root, args.photos_dir)
     except ProposalError as e:
         msg = str(e)
         print(msg, file=sys.stderr)
-        if args.cmd == "approve" and args.error_file:
+        if args.cmd in ("approve", "approve-name") and args.error_file:
             with open(args.error_file, "w", encoding="utf-8") as f:
                 f.write(msg)
         return 1

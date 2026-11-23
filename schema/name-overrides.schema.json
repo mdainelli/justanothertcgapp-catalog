@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/mdainelli/justanothertcgapp-catalog/main/schema/name-overrides.schema.json",
+  "title": "JustAnotherTCGApp English name overrides, format v1",
+  "description": "English names for sets and cards (by language and id) approved by the maintainer; they take precedence over the names bundled in the app. See FORMAT.md.",
+  "type": "object",
+  "required": ["version", "sets", "cards"],
+  "properties": {
+    "version": { "const": 1 },
+    "sets": { "$ref": "#/definitions/byLang" },
+    "cards": { "$ref": "#/definitions/byLang" }
+  },
+  "additionalProperties": true,
+  "definitions": {
+    "byLang": {
+      "type": "object",
+      "propertyNames": {
+        "enum": ["en", "fr", "es", "es-mx", "it", "pt", "pt-br", "de", "nl", "pl", "ru", "ja", "ko", "zh-tw", "zh-cn", "id", "th"]
+      },
+      "additionalProperties": { "$ref": "#/definitions/names" }
+    },
+    "names": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[A-Za-z0-9][A-Za-z0-9\\-._]{0,59}$" },
+      "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 100 }
+    }
+  }
+}

@@ -70,8 +70,9 @@ Servono Node.js 22+ e un account GitHub con accesso al repository del catalogo.
    ```sh
    npx wrangler secret put GITHUB_TOKEN
    ```
-6. **Etichette** nel repository del catalogo (Issues, Labels): `proposta`, `approvata`, `errore`. Senza
-   `proposta` la creazione della issue fallirebbe.
+6. **Etichette** nel repository del catalogo (Issues, Labels): `proposta`, `approvata`, `errore`, `nome`
+   (quest'ultima per `POST /v1/name-suggestions`, proposte di nome inglese). Senza `proposta` (o `nome`) la
+   creazione della issue fallirebbe.
 7. **Deploy**: `npx wrangler deploy`. Verifica con `curl https://<host>/health` (risposta `{"ok":true}`).
 8. Comunica all'app l'URL base del Worker (e quindi la pagina `/turnstile`).
 

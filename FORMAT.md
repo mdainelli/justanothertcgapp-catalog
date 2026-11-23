@@ -116,6 +116,30 @@ Lingue ammesse (`lang`): `en fr es es-mx it pt pt-br de nl pl ru ja ko zh-tw zh-
    Voci singole non valide (id senza `x-`, lingua sconosciuta, campi obbligatori mancanti, id duplicato)
    vengono scartate senza invalidare le altre.
 
+## Nomi inglesi (`name-overrides.json`)
+
+File JSON UTF-8 pubblicato accanto al precedente
+(`.../main/catalog/name-overrides.json`, schema `schema/name-overrides.schema.json`). Contiene i nomi inglesi di
+set e carte non inglesi (oggi solo giapponesi) approvati dal manutentore tramite le proposte di nome
+([`PROPOSALS.md`](PROPOSALS.md)):
+
+```json
+{
+  "version": 1,
+  "sets": { "ja": { "SV6": "Mask of Change" } },
+  "cards": { "ja": { "SV1S-001": "Cacnea" } }
+}
+```
+
+- `version`: intero, oggi `1`; una versione maggiore viene ignorata dall'app. `sets` e `cards`: oggetti
+  `<lang>` → `{ <id TCGdex> → nome inglese }`. Ordine delle chiavi alfabetico (diff leggibili).
+- Nome inglese: 1-100 caratteri, lettere latine/greche, cifre, punteggiatura semplice, nessun link
+  (`scripts/check_extra.py catalog/name-overrides.json`). Campi sconosciuti ignorati.
+- Un'approvazione successiva per la stessa chiave **sostituisce** il valore.
+- L'app lo scarica con la stessa logica di `extra-cards.json` (GET condizionale con ETag, dopo il download dei
+  cataloghi e nel controllo settimanale) e preferisce questi nomi alla tabella inclusa nell'app. File assente,
+  errore di rete o JSON non valido: l'app tiene quanto aveva.
+
 ## Per chi scrive la pipeline (proposte e approvazioni)
 
 - Una carta si aggiunge appendendo un oggetto a `cards` (e, se serve, uno a `sets`), copiando le immagini nei

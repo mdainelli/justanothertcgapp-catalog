@@ -21,7 +21,8 @@ jobs:
     if: >
       github.event.label.name == 'approvata' &&
       github.event.sender.login == github.repository_owner &&
-      contains(github.event.issue.labels.*.name, 'proposta')
+      contains(github.event.issue.labels.*.name, 'proposta') &&
+      !contains(github.event.issue.labels.*.name, 'nome')
     runs-on: ubuntu-24.04
     env:
       GH_TOKEN: ${{ github.token }}
@@ -119,5 +120,86 @@ jobs:
           reason="$(cat "$ERROR_FILE" 2>/dev/null || true)"
           [ -n "$reason" ] || reason="errore interno dell'automazione, vedi il log: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           printf '❌ Proposta non valida: %s\n\nCorreggi il JSON nel corpo della issue (o ripristina le foto), poi togli e rimetti l'"'"'etichetta `approvata` per riprovare.\n' "$reason" > "$RUNNER_TEMP/comment.md"
+          gh issue comment "$ISSUE" --body-file "$RUNNER_TEMP/comment.md"
+          gh issue edit "$ISSUE" --add-label errore --remove-label approvata
+
+  # Proposal of an English name for a set/card (labels "proposta" + "nome"): no photos.
+  # Writes catalog/name-overrides.json (a later approval for the same key replaces the earlier one).
+  approve-name:
+    if: >
+      github.event.label.name == 'approvata' &&
+      github.event.sender.login == github.repository_owner &&
+      contains(github.event.issue.labels.*.name, 'proposta') &&
+      contains(github.event.issue.labels.*.name, 'nome')
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE: ${{ github.event.issue.number }}
+      ERROR_FILE: /tmp/approve-name-error.txt
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5.3.0
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+
+      - name: Apply name suggestion
+        id: approve
+        run: >
+          python3 scripts/approve_proposal.py approve-name
+          --body-file "$GITHUB_EVENT_PATH" --error-file "$ERROR_FILE"
+
+      - name: Validate name overrides (JSON Schema)
+        run: >
+          npx --yes -p ajv-cli@5.0.0 -p ajv-formats@2.1.1
+          ajv validate --spec=draft7 -c ajv-formats
+          -s schema/name-overrides.schema.json -d catalog/name-overrides.json
+          > "$RUNNER_TEMP/validate.log" 2>&1
+          || { { echo "il file dei nomi risultante non rispetta lo schema:"; tail -n 20 "$RUNNER_TEMP/validate.log"; } > "$ERROR_FILE"; exit 1; }
+
+      - name: Validate name overrides (names and ids)
+        run: >
+          python3 scripts/check_extra.py catalog/name-overrides.json > "$RUNNER_TEMP/check.log" 2>&1
+          || { { echo "il file dei nomi risultante non supera i controlli:"; tail -n 20 "$RUNNER_TEMP/check.log"; } > "$ERROR_FILE"; exit 1; }
+
+      - name: Commit and push to main
+        id: commit
+        env:
+          NAME_KEY: ${{ steps.approve.outputs.name_key }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add catalog/name-overrides.json
+          if git diff --cached --quiet; then
+            echo "nessuna modifica: il nome era gia' presente"
+          else
+            git commit -m "Nome inglese $NAME_KEY (proposta #$ISSUE)"
+            git push origin HEAD:main
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Comment, clear error label and close the issue
+        env:
+          NAME_KEY: ${{ steps.approve.outputs.name_key }}
+          ENGLISH: ${{ steps.approve.outputs.english }}
+          SHA: ${{ steps.commit.outputs.sha }}
+        run: |
+          gh issue edit "$ISSUE" --remove-label errore 2>/dev/null || true
+          gh issue close "$ISSUE" --reason completed \
+            --comment "✅ Nome inglese approvato: \`$NAME_KEY\` → $ENGLISH (commit $SHA). Grazie!"
+
+      - name: Report failure on the issue
+        if: failure()
+        run: |
+          reason="$(cat "$ERROR_FILE" 2>/dev/null || true)"
+          [ -n "$reason" ] || reason="errore interno dell'automazione, vedi il log: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          printf '❌ Proposta non valida: %s\n\nCorreggi il JSON nel corpo della issue, poi togli e rimetti l'"'"'etichetta `approvata` per riprovare.\n' "$reason" > "$RUNNER_TEMP/comment.md"
           gh issue comment "$ISSUE" --body-file "$RUNNER_TEMP/comment.md"
           gh issue edit "$ISSUE" --add-label errore --remove-label approvata
