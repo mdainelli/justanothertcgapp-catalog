@@ -20,7 +20,29 @@ Endpoint: `GET /turnstile` (pagina del widget per la WebView), `POST /v1/proposa
 - Il limite e' contato dopo Turnstile e validazione, **prima** delle chiamate a GitHub: un errore GitHub
   consuma comunque un tentativo (scelta anti-abuso). KV e' eventualmente consistente, il limite e' best-effort.
 
-## Pubblicazione passo per passo (piano gratuito)
+## Pubblicazione dal browser con GitHub Actions (consigliata)
+
+Non serve installare niente: tutto si fa dalla dashboard Cloudflare e da GitHub, anche dal telefono.
+
+1. **Account Cloudflare** gratuito su <https://dash.cloudflare.com/sign-up>. Apri *Workers & Pages* e scegli il
+   sottodominio `workers.dev` (es. `marco`). Il Worker sara' `https://justanothertcgapp-proposals.<sottodominio>.workers.dev`.
+2. **Turnstile**: *Turnstile*, *Add widget*, hostname = `justanothertcgapp-proposals.<sottodominio>.workers.dev`,
+   modalita' *Managed*. Annota **site key** e **secret key**.
+3. **Token Cloudflare**: icona profilo, *My Profile*, *API Tokens*, *Create Token*, modello **Edit Cloudflare Workers**,
+   *Account Resources* = il tuo account, *Zone Resources* = *All zones*. Annota il token. L'**Account ID** e' nella
+   home della dashboard (menu del tuo account, *Copy account ID*).
+4. **Token GitHub** fine-grained: solo questo repository, *Contents: Read and write* e *Issues: Read and write*.
+5. In questo repository, *Settings*, *Secrets and variables*, *Actions*:
+   - secret `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `TURNSTILE_SECRET`, `CATALOG_GITHUB_TOKEN` (il token GitHub;
+     GitHub non permette secret che iniziano con `GITHUB_`, il workflow lo passa al Worker come `GITHUB_TOKEN`);
+   - variabile `TURNSTILE_SITE_KEY`.
+6. *Actions*, **Worker deploy**, *Run workflow*. Il workflow esegue i test, crea il namespace KV alla prima
+   esecuzione, pubblica, imposta i secret del Worker e controlla `/health`. L'indirizzo compare nel riepilogo.
+7. Nel repository dell'app imposta la variabile `PROPOSAL_WORKER_URL` con quell'indirizzo (la usa il workflow Release).
+
+Per aggiornare il Worker o cambiare un secret, rilancia lo stesso workflow.
+
+## Pubblicazione da terminale (alternativa)
 
 Servono Node.js 22+ e un account GitHub con accesso al repository del catalogo.
 
