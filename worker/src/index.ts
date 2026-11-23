@@ -1,3 +1,4 @@
+import { ebayConfigured, handleAccountDeletion, handleEbaySearch } from "./ebay";
 import { GitHub, type FetchFn } from "./github";
 import { buildIssueBody, issueTitle, newProposalId, photoPath } from "./issue";
 import { checkJpeg, MAX_IMAGE_BYTES } from "./jpeg";
@@ -118,7 +119,7 @@ export async function handleRequest(request: Request, env: Env, deps: Deps = def
   try {
     if (pathname === "/health") {
       if (request.method !== "GET") throw new HttpError(405, "method_not_allowed");
-      return json(200, { ok: true });
+      return json(200, { ok: true, ebay: ebayConfigured(env) });
     }
     if (pathname === "/turnstile") {
       if (request.method !== "GET") throw new HttpError(405, "method_not_allowed");
@@ -132,6 +133,11 @@ export async function handleRequest(request: Request, env: Env, deps: Deps = def
       if (request.method !== "POST") throw new HttpError(405, "method_not_allowed");
       return await handleProposal(request, env, deps);
     }
+    if (pathname === "/ebay/search") {
+      if (request.method !== "GET") throw new HttpError(405, "method_not_allowed");
+      return await handleEbaySearch(request, env, deps);
+    }
+    if (pathname === "/ebay/account-deletion") return await handleAccountDeletion(request, env);
     throw new HttpError(404, "not_found");
   } catch (e) {
     if (e instanceof HttpError) return errorResponse(e);

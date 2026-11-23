@@ -5,7 +5,8 @@
 Cloudflare Worker (TypeScript, zero dipendenze a runtime) che riceve le carte proposte dall'app e apre una
 issue su `mdainelli/justanothertcgapp-catalog`. Il contratto completo e' in [`../PROPOSALS.md`](../PROPOSALS.md).
 
-Endpoint: `GET /turnstile` (pagina del widget per la WebView), `POST /v1/proposals`, `GET /health`.
+Endpoint: `GET /turnstile` (pagina del widget per la WebView), `POST /v1/proposals`, `GET /health`,
+`GET /ebay/search` e `/ebay/account-deletion` (vedi *Avvisi eBay*).
 
 ## Cosa fa e cosa non fa (privacy)
 
@@ -78,6 +79,40 @@ Il branch `proposals` viene creato dal Worker alla prima proposta, a partire da 
 
 Limite giornaliero: variabile `DAILY_LIMIT` in `wrangler.toml` (default `"3"`). Piano gratuito: 100.000
 richieste al giorno, KV 1.000 scritture al giorno (ogni proposta ne usa una: bastano per ~1.000 proposte/giorno).
+
+## Avvisi eBay
+
+L'app avvisa quando compaiono nuove inserzioni eBay sotto una soglia di prezzo. Le chiavi eBay stanno solo nel
+Worker (mai nell'app open source). Funzione opzionale: senza chiavi `GET /ebay/search` risponde `503 not_configured`
+e `/health` mostra `"ebay": false`.
+
+1. Registrati su <https://developer.ebay.com> (gratis) e accedi al portale.
+2. *Application Keys*: crea un **Production keyset** (App ID = `EBAY_CLIENT_ID`, Cert ID = `EBAY_CLIENT_SECRET`).
+3. Genera un **verification token** di 32-80 caratteri (lettere, numeri, `_`, `-`), ad esempio:
+   ```sh
+   openssl rand -hex 24   # 48 caratteri esadecimali
+   ```
+4. In questo repository, *Settings*, *Secrets and variables*, *Actions*:
+   - (l'App ID `EBAY_CLIENT_ID` è già in `worker/wrangler.toml`, è pubblico);
+   - secret `EBAY_CLIENT_SECRET` e `EBAY_VERIFICATION_TOKEN`.
+5. Lancia **Worker deploy** (*Actions*, *Run workflow*): i valori non vuoti vengono impostati sul Worker e il
+   riepilogo mostra l'endpoint di cancellazione account.
+6. Nel portale eBay: *Alerts & Notifications*, *Marketplace Account Deletion*. Inserisci come endpoint
+   `https://justanothertcgapp-proposals.marcod.workers.dev/ebay/account-deletion` e lo **stesso verification token**,
+   poi premi *Send Test Notification* e *Save*. Il Worker risponde alla sfida e restituisce `204` alle notifiche
+   (non conserva dati utente eBay). Senza questo passaggio le chiavi Production non si attivano.
+   Alternativa: richiedere l'esenzione (*exemption*) dalla notifica nella stessa pagina, se non si conservano dati eBay.
+7. Verifica: `curl https://<host>/health` deve rispondere `{"ok":true,"ebay":true}`.
+
+Contratto di `GET /ebay/search`: parametri `q` (2-200 caratteri), `max` (> 0 e <= 100000), `opts` (`auction`, `bin`,
+`both`; default `both`), `site` (dominio eBay, default `www.ebay.it`), header `X-Install-Hash` (64 hex).
+Risposta `200`: `{"items":[{"id","title","price":{"value","currency"},"buyingOptions","endTime","image","url","listedAt"}],"fetchedAt","marketplace"}`.
+Errori: `400 invalid_q|invalid_max|invalid_opts|invalid_site|invalid_install_hash`, `429 rate_limited` (10 ricerche
+al minuto per installazione), `503 quota_exhausted` (eBay ha risposto 429: quota di 5000 chiamate/giorno esaurita), `503 not_configured`,
+`502 upstream`. I risultati identici (q, max, opts, site) sono messi in cache per 15 minuti e non contano nel limite.
+Limite per installazione: binding Workers Rate Limiting `EBAY_RATE_LIMITER` (gratuito, in `wrangler.toml`).
+Cache dei risultati e token eBay stanno in memoria dell'isolate (al massimo 500 voci): e' best-effort, un isolate
+riciclato o parallelo puo' rifare la chiamata. Il token viene scritto in KV solo quando se ne ottiene uno nuovo (~12 scritture al giorno).
 
 ## Provare con curl
 

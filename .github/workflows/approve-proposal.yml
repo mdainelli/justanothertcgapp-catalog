@@ -26,7 +26,8 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       ISSUE: ${{ github.event.issue.number }}
-      ERROR_FILE: ${{ runner.temp }}/error.txt
+      # runner.* is not available in job-level env: a fixed path on the runner instead.
+      ERROR_FILE: /tmp/approve-proposal-error.txt
     steps:
       - uses: actions/checkout@v4.2.2
         with:
