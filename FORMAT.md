@@ -123,6 +123,58 @@ Lingue ammesse (`lang`): `en fr es es-mx it pt pt-br de nl pl ru ja ko zh-tw zh-
 - Prima di committare: `npx -p ajv-cli@5.0.0 -p ajv-formats@2.1.1 ajv validate --spec=draft7 -c ajv-formats -s schema/extra-cards.schema.json -d catalog/extra-cards.json`
   e `python3 scripts/check_extra.py`. Se uno dei due fallisce, rispondere alla issue con l'errore invece di committare.
 
+## Approvazione delle proposte
+
+Le proposte arrivano dall'app come issue con etichetta `proposta` (corpo in formato fisso: marcatore
+`<!-- justanothertcgapp-proposal v1 -->` + blocco ```` ```json proposal ````; le foto JPEG stanno sul branch
+`proposals`, in `proposals/<proposalId>/front.jpg|back.jpg`).
+
+**Come approva Marco**: apre la issue, controlla dati e foto, aggiunge l'etichetta `approvata`. Nient'altro.
+L'etichetta conta solo se la mette il proprietario del repository e se la issue ha `proposta`.
+
+**Cosa fa la Action** (`.github/workflows/approve-proposal.yml`, script `scripts/approve_proposal.py`):
+
+1. legge e valida il JSON della proposta (campi come in `proposal-spec`, campi sconosciuti ignorati);
+2. costruisce l'id `x-<lang>-<setId o slug(setName)>-<localId>-<slug(name)>`; se `setId` e' `null` crea (se manca)
+   l'ExtraSet `x-<lang>-<slug(setName)>`;
+3. converte le foto in WebP (lato lungo max 1200 px, qualita' 85, niente EXIF/ICC; la rotazione EXIF viene
+   applicata ai pixel) in `catalog/images/<lang>/<idCarta>/front.webp|back.webp`;
+4. inserisce la carta in `catalog/extra-cards.json` (ordinato per `lang`, `setId`, `localId` in ordine naturale,
+   `id`; JSON a 2 spazi), con `source: {issue, approvedAt}` e `updatedAt` aggiornato;
+5. esegue la stessa validazione di `validate.yml` (ajv + `check_extra.py`) **prima** di committare;
+6. commit `Aggiunge <idCarta> (proposta #N)` su `main` (immagini e JSON insieme, un solo commit), cancella le
+   foto dal branch `proposals`, commenta con l'id e chiude la issue come completata.
+
+Le esecuzioni sono serializzate (`concurrency: catalog-write`): mai due commit in parallelo.
+
+**Regole degli slug**: minuscole ASCII, accenti rimossi (NFKD), ogni altro carattere diventa `-`, trattini
+ripetuti fusi e tolti ai bordi. Se non resta nulla (es. nomi giapponesi) lo slug e' `card-<8 hex di SHA-1 del
+testo>` (`set-<hash>` per i nomi di set, `n-<hash>` per i numeri). Per un set extra gia' esistente nell'id
+della carta si usa l'id del set senza il prefisso `x-<lang>-`. Lo slug del nome viene troncato in modo che
+l'id resti entro 100 caratteri.
+
+**Se qualcosa non va** (JSON o marcatore malformati, campo mancante o non valido, foto assente o illeggibile,
+id o (`lang`, `setId`, `localId`) duplicato, set extra inesistente, schema o `check_extra.py` falliti): non
+viene committato nulla, la issue riceve il commento `❌ Proposta non valida: <motivo>` e l'etichetta
+`errore`, resta aperta, e l'etichetta `approvata` viene tolta.
+
+**Come riprovare**: correggi il JSON nel corpo della issue (modifica la issue; il blocco `json proposal` e il
+marcatore devono restare) e aggiungi di nuovo `approvata`. Al successo l'etichetta `errore` viene tolta.
+Se la carta e' un duplicato, chiudi la issue senza approvarla.
+
+**Proposte chiuse senza approvazione**: `cleanup-proposal.yml` cancella le foto dal branch `proposals`.
+
+**Da configurare una volta** (Marco):
+
+- Crea le etichette: `gh label create proposta --color 1d76db --description "Proposta di carta dall'app"`,
+  `gh label create approvata --color 0e8a16 --description "Approva la proposta (avvia la Action)"`,
+  `gh label create errore --color d93f0b --description "Proposta non valida, vedi il commento"`
+  (oppure da Issues > Labels).
+- Settings > Actions > General > Workflow permissions: "Read and write permissions".
+- Se `main` ha una branch protection/ruleset, consenti il push diretto a `github-actions[bot]`
+  (bypass), altrimenti il commit di approvazione viene rifiutato (la issue riceve il commento di errore).
+- Il branch `proposals` non deve essere protetto (il Worker e la Action ci scrivono).
+
 ---
 
 ## English summary

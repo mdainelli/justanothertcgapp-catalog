@@ -1,0 +1,55 @@
+name: Cleanup rejected proposal
+
+# A proposal issue closed WITHOUT the label "approvata": delete its photos from the branch "proposals".
+
+on:
+  issues:
+    types: [closed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: proposals-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    if: >
+      contains(github.event.issue.labels.*.name, 'proposta') &&
+      !contains(github.event.issue.labels.*.name, 'approvata')
+    runs-on: ubuntu-24.04
+    env:
+      ISSUE: ${{ github.event.issue.number }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5.3.0
+        with:
+          python-version: "3.12"
+
+      - name: Read proposal id
+        id: pid
+        run: python3 scripts/approve_proposal.py proposal-id --body-file "$GITHUB_EVENT_PATH"
+
+      - name: Delete photos from branch proposals
+        env:
+          PROPOSAL_ID: ${{ steps.pid.outputs.proposal_id }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            if ! git fetch --depth=1 origin proposals; then
+              echo "branch proposals assente: niente da fare"; exit 0
+            fi
+            git checkout -q --detach FETCH_HEAD
+            git rm -r -q --ignore-unmatch "proposals/$PROPOSAL_ID"
+            git diff --cached --quiet && { echo "nessuna foto da rimuovere"; exit 0; }
+            git commit -q -m "Rimuove le foto della proposta $PROPOSAL_ID (issue #$ISSUE chiusa)"
+            git push origin HEAD:proposals && exit 0
+            sleep 3
+          done
+          exit 1
