@@ -1,0 +1,25 @@
+name = "justanothertcgapp-proposals"
+main = "src/index.ts"
+compatibility_date = "2025-11-01"
+workers_dev = true
+
+# Privacy: no request/payload/IP logging. Observability (logs, traces) stays OFF.
+[observability]
+enabled = false
+
+[observability.logs]
+enabled = false
+invocation_logs = false
+
+[[kv_namespaces]]
+binding = "LIMITS"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+[vars]
+DAILY_LIMIT = "3"
+TURNSTILE_SITE_KEY = "REPLACE_WITH_TURNSTILE_SITE_KEY"
+CATALOG_REPO = "mdainelli/justanothertcgapp-catalog"
+
+# Secrets (NOT here, set with `npx wrangler secret put <NAME>`):
+#   TURNSTILE_SECRET  Turnstile widget secret key
+#   GITHUB_TOKEN      fine-grained token, catalog repo only, Contents RW + Issues RW
