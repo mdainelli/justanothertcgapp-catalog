@@ -8,6 +8,8 @@ name: Worker deploy
 #   (EBAY_CLIENT_ID, the public App ID, is in worker/wrangler.toml [vars])
 #   secrets   EBAY_CLIENT_SECRET       eBay production keyset Cert ID
 #             EBAY_VERIFICATION_TOKEN  32-80 chars [A-Za-z0-9_-], same value entered in the eBay developer portal
+# Optional, subscription check on /ebay/search (only used when SUBSCRIPTION_CHECK_ENABLED = "true" in worker/wrangler.toml):
+#   secrets   GOOGLE_PLAY_SERVICE_ACCOUNT  full JSON key of the Google Cloud service account linked in Play Console
 # The KV namespace is created on the first run and reused afterwards. Secrets are never printed.
 
 on:
@@ -79,8 +81,9 @@ jobs:
         env:
           EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
           EBAY_VERIFICATION_TOKEN: ${{ secrets.EBAY_VERIFICATION_TOKEN }}
+          GOOGLE_PLAY_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}
         run: |
-          for name in EBAY_CLIENT_SECRET EBAY_VERIFICATION_TOKEN; do
+          for name in EBAY_CLIENT_SECRET EBAY_VERIFICATION_TOKEN GOOGLE_PLAY_SERVICE_ACCOUNT; do
             if [ -n "${!name}" ]; then
               printf '%s' "${!name}" | npx wrangler secret put "$name" > /dev/null
               echo "$name set."
