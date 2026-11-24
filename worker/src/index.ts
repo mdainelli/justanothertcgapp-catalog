@@ -1,4 +1,5 @@
 import { ebayConfigured, handleAccountDeletion, handleEbaySearch } from "./ebay";
+import { requireSubscription, subscriptionCheckEnabled } from "./subscription";
 import { HttpError, type Env, type FetchFn } from "./types";
 
 export interface Deps {
@@ -42,6 +43,7 @@ export async function handleRequest(request: Request, env: Env, deps: Deps = def
     }
     if (pathname === "/ebay/search") {
       if (request.method !== "GET") throw new HttpError(405, "method_not_allowed");
+      if (subscriptionCheckEnabled(env)) await requireSubscription(request, env, deps);
       return await handleEbaySearch(request, env, deps);
     }
     if (pathname === "/ebay/account-deletion") return await handleAccountDeletion(request, env);

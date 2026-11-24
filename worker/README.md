@@ -71,13 +71,51 @@ Limite per installazione: binding Workers Rate Limiting `EBAY_RATE_LIMITER` (gra
 Cache dei risultati e token eBay stanno in memoria dell'isolate (al massimo 500 voci): e' best-effort, un isolate
 riciclato o parallelo puo' rifare la chiamata. Il token viene scritto in KV solo quando se ne ottiene uno nuovo (~12 scritture al giorno).
 
+## Verifica dell'abbonamento (spenta fino al rilascio)
+
+Quando l'app sara' a pagamento (abbonamento Google Play), `GET /ebay/search` puo' richiedere un abbonamento attivo.
+L'interruttore e' la variabile `SUBSCRIPTION_CHECK_ENABLED` in `worker/wrangler.toml`: con `"false"` (predefinito)
+il Worker si comporta come prima e non chiama Google. Non attivarla finche' l'app con l'abbonamento non e' pubblicata.
+
+Come funziona quando e' `"true"`:
+
+- l'app invia l'header `X-Play-Purchase-Token` (token d'acquisto Play); il Worker lo verifica con
+  `purchases.subscriptionsv2.get` (pacchetto `io.github.mdainelli.justanothertcgapp`);
+- stati accettati: `SUBSCRIPTION_STATE_ACTIVE` e `SUBSCRIPTION_STATE_IN_GRACE_PERIOD`; `ON_HOLD`, scaduto, annullato e
+  in pausa non sono attivi;
+- risposte: token mancante `402 subscription_required`, non attivo o non valido `403 subscription_inactive`,
+  Google non raggiungibile `502 upstream`, service account mancante o errato `503 not_configured`;
+- bypass amministratore: se l'app invia `Authorization: Bearer <JWT Supabase>` e la funzione RPC `my_role` risponde
+  `admin`, la richiesta passa senza abbonamento (servono `SUPABASE_URL` e `SUPABASE_ANON_KEY` in `[vars]`, sono pubblici);
+- i risultati si conservano in KV per 10 minuti con chiave `sha256(token)` (il token non e' mai salvato ne' scritto nei log).
+  Il token di accesso Google resta in cache (memoria e KV) fino a poco prima della scadenza.
+
+Passi per il proprietario:
+
+1. **Google Cloud**: <https://console.cloud.google.com>, crea (o scegli) un progetto, *API e servizi*, *Libreria*,
+   abilita **Google Play Android Developer API**.
+2. *IAM e amministrazione*, *Account di servizio*, *Crea account di servizio* (nome ad esempio `play-verifica`, nessun
+   ruolo di progetto necessario). Aprilo, scheda *Chiavi*, *Aggiungi chiave*, *Crea nuova chiave*, formato **JSON**:
+   si scarica un file `.json`. Tienilo riservato.
+3. **Play Console** (<https://play.google.com/console>): *Utenti e autorizzazioni*, *Invita nuovi utenti*, incolla
+   l'email dell'account di servizio (`...@...iam.gserviceaccount.com`). Nelle autorizzazioni dell'app concedi
+   *Visualizza i dati finanziari* e *Gestisci ordini e abbonamenti*, poi *Invita*. L'attivazione puo' richiedere
+   fino a qualche ora.
+4. In questo repository, *Settings*, *Secrets and variables*, *Actions*: nuovo secret `GOOGLE_PLAY_SERVICE_ACCOUNT`
+   con **tutto il contenuto** del file JSON.
+5. In `worker/wrangler.toml` imposta `SUPABASE_URL` e `SUPABASE_ANON_KEY` (per il bypass amministratore) e, solo al
+   rilascio, `SUBSCRIPTION_CHECK_ENABLED = "true"`.
+6. Lancia **Worker deploy** (*Actions*, *Run workflow*): imposta il secret sul Worker.
+7. Prova: senza header `curl "https://<host>/ebay/search?q=pikachu&max=20" -H "X-Install-Hash: $(printf 'a%.0s' {1..64})"`
+   deve dare `402`; con un token di un abbonato attivo `200`.
+
 ## Sviluppo
 
 ```sh
 npm ci && npm test && npx tsc --noEmit
 ```
 
-I test (vitest, nessuna chiamata di rete reale) coprono gli endpoint eBay e `/health` con fetch simulato e KV
+I test (vitest, nessuna chiamata di rete reale) coprono gli endpoint eBay `/health` e la verifica abbonamento con fetch simulato e KV
 in memoria. La CI e' in `.github/workflows/worker.yml`.
 
 ## English
@@ -85,5 +123,7 @@ in memoria. La CI e' in `.github/workflows/worker.yml`.
 A zero-dependency Cloudflare Worker (free plan) that proxies the app's eBay price alerts (`/ebay/search`,
 `/ebay/account-deletion`, `/health`). Card and name proposals, GitHub issues and Turnstile were removed; the
 Worker keeps its historical name `justanothertcgapp-proposals` so its URL does not change. It logs nothing
-(observability disabled). Deploy: `npm ci`, `npx wrangler login`, create the KV namespace and paste its id in
+(observability disabled). Optional subscription check on `/ebay/search` (`SUBSCRIPTION_CHECK_ENABLED`, off by default): requires
+the `X-Play-Purchase-Token` header, verified with the Google Play Developer API (`402` missing, `403` inactive), with a Supabase admin
+bypass. See the Italian steps above. Deploy: `npm ci`, `npx wrangler login`, create the KV namespace and paste its id in
 `wrangler.toml`, then `npx wrangler deploy` (or run the **Worker deploy** workflow).

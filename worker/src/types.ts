@@ -10,6 +10,12 @@ export interface Env {
   EBAY_CLIENT_ID?: string;
   EBAY_CLIENT_SECRET?: string;
   EBAY_VERIFICATION_TOKEN?: string;
+  /** "true" turns the subscription check on for /ebay/search (default "false"). */
+  SUBSCRIPTION_CHECK_ENABLED?: string;
+  /** Service account JSON (secret) used to call the Google Play Developer API. */
+  GOOGLE_PLAY_SERVICE_ACCOUNT?: string;
+  SUPABASE_URL?: string;
+  SUPABASE_ANON_KEY?: string;
   EBAY_RATE_LIMITER?: { limit(opts: { key: string }): Promise<{ success: boolean }> };
 }
 
