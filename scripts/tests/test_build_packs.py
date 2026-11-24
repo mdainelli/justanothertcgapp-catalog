@@ -120,11 +120,41 @@ def test_retries_503_then_succeeds():
     assert len(calls) == 3 and calls[0].startswith("justanothertcgapp")
 
 
+def missing_get(db, missing):
+    def get(url):
+        if url in missing:
+            raise bp.NotFound(url)
+        return db[url]
+    return get
+
+
+def test_card_without_details_kept_from_set_list():
+    db = make_db()
+    url = f"{bp.API}/en/cards/a1-2"
+    c = bp.fetch_pack_content("en", get=missing_get(db, {url}), log=lambda *_: None)
+    card = next(x for x in c["cards"] if x["id"] == "a1-2")
+    assert card["localId"] == "2" and card["set"]["id"] == "a1"
+
+
+def test_too_many_cards_without_details_fail(monkeypatch):
+    monkeypatch.setattr(bp, "MIN_MISSING_ALLOWED", 1)
+    db = make_db()
+    missing = {f"{bp.API}/en/cards/a1-1", f"{bp.API}/en/cards/a1-2"}
+    with pytest.raises(bp.BuildError):
+        bp.fetch_pack_content("en", get=missing_get(db, missing), log=lambda *_: None)
+
+
+def test_missing_set_still_fails():
+    db = make_db()
+    with pytest.raises(bp.NotFound):
+        bp.fetch_pack_content("en", get=missing_get(db, {f"{bp.API}/en/sets/a1"}), log=lambda *_: None)
+
+
 def test_404_fails_fast_and_exhausted_retries_fail():
     def nf(req, timeout):
         raise urllib.error.HTTPError(req.full_url, 404, "x", {}, None)
 
-    with pytest.raises(bp.BuildError):
+    with pytest.raises(bp.NotFound):
         bp.http_get_json("http://x", sleep=lambda s: None, opener=nf)
 
     n = []
@@ -136,3 +166,10 @@ def test_404_fails_fast_and_exhausted_retries_fail():
     with pytest.raises(bp.BuildError):
         bp.http_get_json("http://x", retries=3, sleep=lambda s: None, opener=always503)
     assert len(n) == 3
+
+
+def test_path_id_encodes_special_ids():
+    assert bp.path_id("SM1+") == "SM1%2B"
+    assert bp.path_id("exu-?") == "exu-%3F"
+    assert bp.path_id("exu-%3F") == "exu-%3F"
+    assert bp.path_id("swsh3-136") == "swsh3-136"
