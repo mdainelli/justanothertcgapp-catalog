@@ -22,13 +22,8 @@ namespace_id = "1001"
 simple = { limit = 10, period = 60 }
 
 [vars]
-DAILY_LIMIT = "3"
-TURNSTILE_SITE_KEY = "REPLACE_WITH_TURNSTILE_SITE_KEY"
 # eBay production App ID (Client ID): public, so it lives here and not in the secrets.
 EBAY_CLIENT_ID = "MarcoDai-analisi-PRD-a814323b9-9594f752"
-CATALOG_REPO = "mdainelli/justanothertcgapp-catalog"
 
 # Secrets (NOT here, set with `npx wrangler secret put <NAME>`):
-#   TURNSTILE_SECRET  Turnstile widget secret key
-#   GITHUB_TOKEN      fine-grained token, catalog repo only, Contents RW + Issues RW
 #   EBAY_CLIENT_SECRET, EBAY_VERIFICATION_TOKEN  optional, eBay alerts (see README)

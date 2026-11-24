@@ -1,5 +1,4 @@
-import type { FetchFn } from "./github";
-import { HttpError, type Env } from "./types";
+import { HttpError, type Env, type FetchFn } from "./types";
 import { validateInstallHash } from "./validation";
 
 export interface EbayDeps {

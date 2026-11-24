@@ -2,7 +2,7 @@
   "name": "justanothertcgapp-proposals",
   "version": "1.0.0",
   "private": true,
-  "description": "Cloudflare Worker that turns card proposals into GitHub issues",
+  "description": "Cloudflare Worker that serves the eBay price alerts of the app",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
