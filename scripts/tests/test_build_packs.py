@@ -166,3 +166,10 @@ def test_404_fails_fast_and_exhausted_retries_fail():
     with pytest.raises(bp.BuildError):
         bp.http_get_json("http://x", retries=3, sleep=lambda s: None, opener=always503)
     assert len(n) == 3
+
+
+def test_path_id_encodes_special_ids():
+    assert bp.path_id("SM1+") == "SM1%2B"
+    assert bp.path_id("exu-?") == "exu-%3F"
+    assert bp.path_id("exu-%3F") == "exu-%3F"
+    assert bp.path_id("swsh3-136") == "swsh3-136"
