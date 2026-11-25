@@ -6,7 +6,7 @@ Ogni settimana (lunedi' 03:17 UTC) e a richiesta (Actions, "Build catalog packs"
 [`build-packs.yml`](.github/workflows/build-packs.yml) scarica da TCGdex (`https://api.tcgdex.net/v2/{lang}/sets`,
 `/sets/{id}`, `/cards/{id}`) tutti i set e le carte con il dettaglio completo, per ogni lingua elencata in
 [`languages.json`](languages.json), e pubblica un pacchetto per lingua piu' un indice. Le immagini non sono incluse
-(restano su TCGdex, l'app compone gli URL dal campo `image`), i prezzi nemmeno (restano live: `pricing` e' rimosso
+(restano su TCGdex, l'app compone gli URL dal campo `image`), i prezzi nemmeno (sono in [`PRICES.md`](PRICES.md), aggiornati ogni giorno: `pricing` e' rimosso
 dalle carte, e anche `updated`, che cambierebbe l'hash senza che cambi il contenuto).
 
 Per aggiungere o togliere una lingua basta modificare `languages.json` (`{"languages":[{"code":"en"},...]}`,
@@ -79,5 +79,5 @@ auth-free URLs:
 Follow redirects. Each index entry has `lang, file, schemaVersion, version, date, contentHash, sha256, size,
 uncompressedSize, setCount, cardCount`; a language is re-uploaded only when its `contentHash` changed, otherwise
 its entry (and version) is kept. Pack = `{schemaVersion, lang, sets[], cards[]}` with the unmodified TCGdex set and
-card documents (cards without `pricing`/`updated`), sorted by id. No images, no prices. Formats are versioned by
+card documents (cards without `pricing`/`updated`), sorted by id. No images; prices are in [PRICES.md](PRICES.md) (daily). Formats are versioned by
 `schemaVersion`; additive changes keep it.

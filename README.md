@@ -11,6 +11,7 @@ Action: l'app non invia piu' nulla e usa solo il catalogo TCGdex piu' i nomi gia
 Non viene raccolto alcun dato personale.
 
 - [`PACKS.md`](PACKS.md): pacchetti TCGdex settimanali per lingua (`languages.json`, `scripts/build_packs.py`, release `catalog-packs`).
+- [`PRICES.md`](PRICES.md): prezzi giornalieri per set (`scripts/build_prices.py`, release `catalog-prices`).
 
 ## English
 
@@ -20,3 +21,4 @@ Cloudflare Worker in [`worker/`](worker/README.md) (free plan) that serves the a
 their GitHub Actions were removed: the app submits nothing any more. No personal data is collected.
 
 - [`PACKS.md`](PACKS.md): weekly TCGdex packs per language (`languages.json`, `scripts/build_packs.py`, release `catalog-packs`).
+- [`PRICES.md`](PRICES.md): daily prices per set (`scripts/build_prices.py`, release `catalog-prices`).
