@@ -1,8 +1,8 @@
 # Informativa sulla privacy
 
-*Ultimo aggiornamento: 23 novembre 2026* · [English version below](#privacy-policy-english)
+*Ultimo aggiornamento: 25 novembre 2026* · [English version below](#privacy-policy-english)
 
-JustAnotherTCGApp è un'app gratuita e open source per gestire la propria collezione di carte collezionabili. **Nessuna pubblicità, nessun tracciamento, nessuna analisi d'uso, nessuna vendita dei dati. Di default i tuoi dati restano sul telefono.** L'account è facoltativo e serve solo a sincronizzare i dati tra più telefoni e, se attivo, ad acquistare l'abbonamento.
+JustAnotherTCGApp è un'app gratuita per gestire la propria collezione di carte collezionabili. **Nessuna pubblicità, nessun tracciamento, nessuna analisi d'uso, nessuna vendita dei dati. Di default i tuoi dati restano sul telefono.** L'account è facoltativo e serve solo a sincronizzare i dati tra più telefoni e, se attivo, ad acquistare l'abbonamento.
 
 ## In breve
 
@@ -21,7 +21,7 @@ I dati che crei (collezione, raccoglitori, wishlist, carte inserite a mano, avvi
 
 Puoi usare l'app senza account. Se ne crei uno (email e password) l'app contatta un progetto **Supabase** ospitato nell'Unione Europea (regione Francoforte, Germania).
 
-**Dati dell'account**: indirizzo email, password (non la vediamo: Supabase conserva solo un hash), data di creazione e ruolo. La sessione sul telefono è cifrata con il Keystore di Android. Le email di conferma e di reimpostazione della password sono inviate tramite Supabase.
+**Dati dell'account**: indirizzo email, password (non la vediamo: Supabase conserva solo un hash), data di creazione e ruolo. La sessione sul telefono è cifrata con il Keystore di Android. Le email di conferma e di reimpostazione della password sono inviate tramite Supabase e il servizio email **Brevo** (Francia, UE), che riceve solo il tuo indirizzo email e il testo del messaggio.
 
 **Cosa viene sincronizzato** mentre sei connesso: collezione (carta, variante, quantità, condizione, grading), wishlist (con condizione desiderata e nota), carte inserite a mano (solo dati, senza foto), raccoglitori e le carte che contengono, avvisi eBay (carta, prezzo massimo, tipo, stato), carte di cui segui il prezzo (non lo storico dei prezzi) e preferenze (lingua dell'app, lingue del catalogo, sito eBay, impostazioni di aggiornamento). I dati sono visibili solo a te (sicurezza a livello di riga) e restano anche sul telefono. Se esci dall'account, i dati restano sul telefono. Le connessioni usano HTTPS (cifratura in transito).
 
@@ -38,6 +38,7 @@ Le funzioni a pagamento (se attivate) si acquistano con un abbonamento tramite *
 L'app contatta solo questi servizi:
 
 - **Supabase** (UE, Francoforte): account e sincronizzazione, solo se crei un account.
+- **Brevo** (UE, Francia): invio delle email di conferma e di reimpostazione della password, solo se crei un account.
 - **Google Play** (Google): acquisto e gestione dell'abbonamento; il token di acquisto viene verificato dal nostro Worker.
 - **Cloudflare** (Workers): servizio del progetto che inoltra le ricerche eBay e verifica l'abbonamento. Riceve un codice anonimo di installazione (hash SHA-256 di un identificativo casuale generato dall'app, mai un identificativo del dispositivo o pubblicitario), usato solo per il limite di richieste. Come ogni servizio web, Cloudflare vede l'indirizzo IP della richiesta.
 - **eBay (API Browse)**: se crei un avviso eBay, il Worker inoltra a eBay il testo di ricerca (nome della carta, set, numero), il prezzo massimo, il tipo di annuncio e il sito eBay scelto, **senza** il codice anonimo. Si applica l'informativa di eBay. Il Worker non conserva ciò che cerchi: tiene solo un contatore giornaliero per codice anonimo e una cache dei risultati di 15 minuti. Se non crei avvisi, nessuna di queste richieste viene fatta.
@@ -66,9 +67,9 @@ Per domande o richieste apri una issue su <https://github.com/mdainelli/justanot
 
 # Privacy policy (English)
 
-*Last updated: 23 November 2026*
+*Last updated: 25 November 2026*
 
-JustAnotherTCGApp is a free, open-source app to manage your trading card collection. **No ads, no tracking, no analytics, no selling of data. By default your data stays on your phone.** The account is optional and only serves to sync data between several phones and, if enabled, to buy the subscription.
+JustAnotherTCGApp is a free app to manage your trading card collection. **No ads, no tracking, no analytics, no selling of data. By default your data stays on your phone.** The account is optional and only serves to sync data between several phones and, if enabled, to buy the subscription.
 
 ## In short
 
@@ -87,7 +88,7 @@ The data you create (collection, binders, wishlist, manually added cards, alerts
 
 You can use the app without an account. If you create one (email and password) the app contacts a **Supabase** project hosted in the European Union (Frankfurt, Germany region).
 
-**Account data**: email address, password (we never see it: Supabase stores only a hash), creation date and role. The session on the phone is encrypted with the Android Keystore. Confirmation and password-reset emails are sent through Supabase.
+**Account data**: email address, password (we never see it: Supabase stores only a hash), creation date and role. The session on the phone is encrypted with the Android Keystore. Confirmation and password-reset emails are sent through Supabase and the **Brevo** email service (France, EU), which only receives your email address and the message text.
 
 **What is synced** while you are signed in: collection (card, variant, quantity, condition, grading), wishlist (with wanted condition and note), manually added cards (data only, no photos), binders and the cards they hold, eBay alerts (card, maximum price, type, state), followed-price cards (not the price history) and preferences (app language, catalog languages, eBay site, update settings). Only you can see the data (row-level security) and it also stays on the phone. If you sign out, the data stays on the phone. Connections use HTTPS (encryption in transit).
 
@@ -104,6 +105,7 @@ Paid features (if enabled) are bought as a subscription through **Google Play Bi
 The app only contacts these services:
 
 - **Supabase** (EU, Frankfurt): account and sync, only if you create an account.
+- **Brevo** (EU, France): sending confirmation and password-reset emails, only if you create an account.
 - **Google Play** (Google): subscription purchase and management; the purchase token is verified by our Worker.
 - **Cloudflare** (Workers): the project's service that forwards eBay searches and verifies the subscription. It receives an anonymous install code (SHA-256 hash of a random identifier generated by the app, never a device or advertising identifier), used only for rate limiting. Like any web service, Cloudflare sees the request's IP address.
 - **eBay (Browse API)**: if you create an eBay alert, the Worker forwards to eBay the search text (card name, set, number), the maximum price, the listing type and the chosen eBay site, **without** the anonymous code. eBay's privacy policy applies. The Worker does not store what you search: it only keeps a daily counter per anonymous code and a 15-minute cache of results. If you create no alerts, none of these requests are made.
