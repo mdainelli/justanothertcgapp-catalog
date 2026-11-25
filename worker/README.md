@@ -40,7 +40,7 @@ curl https://<host>/health
 ## Avvisi eBay
 
 L'app avvisa quando compaiono nuove inserzioni eBay sotto una soglia di prezzo. Le chiavi eBay stanno solo nel
-Worker (mai nell'app open source). Funzione opzionale: senza chiavi `GET /ebay/search` risponde `503 not_configured`
+Worker (mai nell'app). Funzione opzionale: senza chiavi `GET /ebay/search` risponde `503 not_configured`
 e `/health` mostra `"ebay": false`.
 
 1. Registrati su <https://developer.ebay.com> (gratis) e accedi al portale.
