@@ -117,7 +117,7 @@ def test_failure_threshold():
     for i in range(2):
         db[f"{A}/en/cards/s-{i}"] = bp.BuildError("boom")
     sets, _, failed = bpr.fetch_group("intl", ["en"], get=fake_get(db), log=quiet)
-    assert failed == 2 and sets["s"]["s-0"] is None
+    assert failed == 2 and "s-0" not in sets["s"] and sets["s"]["s-2"] is not None
     db[f"{A}/en/cards/s-2"] = bp.BuildError("boom")
     with pytest.raises(bp.BuildError):
         bpr.fetch_group("intl", ["en"], get=fake_get(db), log=quiet)

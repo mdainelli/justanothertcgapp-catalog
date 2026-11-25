@@ -79,6 +79,9 @@ def make_groups(codes):
     return groups
 
 
+FAILED = object()  # marker of a card whose fetch failed (non-404)
+
+
 def fetch_group(group, langs, get=http_get_json, only_set=None, concurrency=CONCURRENCY, log=print):
     """Returns ({setId: {cardId: pricing|None}}, fetched, failed). Raises BuildError over the failure threshold."""
     set_ids = set()
@@ -116,14 +119,15 @@ def fetch_group(group, langs, get=http_get_json, only_set=None, concurrency=CONC
                 return None
             except BuildError as e:
                 failed.append(f"{cid}: {e}")
-                return None
+                return FAILED
 
         prices = dict(zip(card_ids, pool.map(fetch_card, card_ids)))
     if failed:
         log(f"{group}: {len(failed)} card fetch(es) failed, e.g. {failed[0]}")
         if len(failed) > len(card_ids) * MAX_FAIL_SHARE:
             raise BuildError(f"{group}: {len(failed)} of {len(card_ids)} card fetches failed (max {MAX_FAIL_SHARE:.0%})")
-    sets = {i: {cid: prices[cid] for cid in sorted(cids)} for i, cids in set_cards.items() if cids}
+    # A failed card is left out of its set file (not null), so the app asks TCGdex for it instead of showing "no price".
+    sets = {i: {cid: prices[cid] for cid in sorted(cids) if prices[cid] is not FAILED} for i, cids in set_cards.items() if cids}
     return sets, len(card_ids), len(failed)
 
 

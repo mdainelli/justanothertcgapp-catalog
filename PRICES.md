@@ -51,7 +51,7 @@ JSON UTF-8 gzip, chiavi ordinate, senza spazi:
 ```
 
 Ogni carta del set e' presente; `null` = nessun prezzo. Rispetto a TCGdex sono tolti `idProduct`/`productId` e i campi
-`null`; un fornitore senza numeri sparisce, e senza fornitori la carta e' `null`. Una carta senza endpoint (404) e' `null`.
+`null`; un fornitore senza numeri sparisce, e senza fornitori la carta e' `null`. Una carta senza endpoint (404) e' `null`; una carta la cui richiesta fallisce (dentro la soglia del 2%) manca dal file, e l'app la chiede a TCGdex.
 `schemaVersion` cresce solo per cambi non retrocompatibili.
 
 ### Sicurezza
@@ -78,6 +78,6 @@ TCGdex per card. If the files are missing, the app falls back to TCGdex. The fil
 - Files live in a dated prerelease `prices-YYYY-MM-DD`; the index is uploaded last. The 3 newest dated releases plus the one the index points to are kept.
 - Groups: each Asian language (`ja, ko, zh-tw, zh-cn, th, id`) is its own group (Japanese ids can collide with international ones such as `neo1`); every other language is in `intl`. A group's cards are the union of its languages' sets, each card fetched once from the first language listing it.
 - Index: `{schemaVersion, date, tag, groups: {name: {langs[], sets: {setId: file}}}, cardCount, pricedCount}`. Always use the file names from the index (unsafe characters become `_`).
-- Set file: `{schemaVersion, group, set, date, cards: {cardId: pricing | null}}` with every card of the set; `pricing` is TCGdex's `pricing` without product ids and null fields, `null` when there is no price.
+- Set file: `{schemaVersion, group, set, date, cards: {cardId: pricing | null}}` with every card of the set; `pricing` is TCGdex's `pricing` without product ids and null fields, `null` when there is no price; a card whose fetch failed is left out, so the app asks TCGdex for it.
 - Safety: the build fails and publishes nothing if more than 2% of a group's card fetches fail or `pricedCount` falls below 50% of the published one.
 - Source: prices from TCGdex (Cardmarket, TCGplayer); attribute accordingly.
