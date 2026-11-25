@@ -1,0 +1,58 @@
+name: Build catalog prices
+
+on:
+  schedule:
+    - cron: "41 0 * * *" # every day 00:41 UTC, after TCGdex's ~22:16 UTC price update
+  workflow_dispatch:
+
+permissions:
+  contents: write # create/update the `catalog-prices` and `prices-YYYY-MM-DD` releases
+
+concurrency:
+  group: build-prices
+  cancel-in-progress: false
+
+env:
+  INDEX_TAG: catalog-prices
+  BASE_URL: https://github.com/${{ github.repository }}/releases/download/catalog-prices
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5.3.0
+        with:
+          python-version: "3.12"
+      - name: Fetch the published index (if any)
+        run: curl -fsSL --retry 3 -o previous-prices-index.json "$BASE_URL/prices-index.json" || rm -f previous-prices-index.json
+      - name: Build prices
+        run: python3 scripts/build_prices.py --languages languages.json --out dist-prices --previous previous-prices-index.json
+      - name: Publish the dated release
+        run: |
+          tag="$(jq -r .tag dist-prices/prices-index.json)"
+          echo "TAG=$tag" >> "$GITHUB_ENV"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            # same-day rerun: replace the assets in place
+            gh release upload "$tag" dist-prices/*.json.gz --clobber
+          else
+            gh release create "$tag" dist-prices/*.json.gz --prerelease --title "Prices $tag" \
+              --notes "Daily price files, see PRICES.md. Do not edit."
+          fi
+      - name: Publish the index
+        run: |
+          gh release view "$INDEX_TAG" >/dev/null 2>&1 || gh release create "$INDEX_TAG" --title "Catalog prices" \
+            --notes "Daily price index, see PRICES.md. Do not edit."
+          # The index goes last, so an app never sees an index pointing at files that are not there yet.
+          gh release upload "$INDEX_TAG" dist-prices/prices-index.json --clobber
+      - name: Delete old dated releases
+        run: |
+          # keep the 3 newest prices-* releases and the one the index points to; never touch catalog-*
+          gh release list --limit 100 --json tagName --jq '.[].tagName | select(startswith("prices-"))' | sort -r | tail -n +4 |
+            while read -r old; do
+              [ "$old" = "$TAG" ] && continue
+              gh release delete "$old" --cleanup-tag --yes || true
+            done
